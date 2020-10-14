@@ -1,0 +1,117 @@
+---
+title: "Data cleaning"
+author: "Katrina Keegan"
+date: "10/13/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+raw_nexta_aug_8_aug_13 <- read_csv("raw_data_csv/nexta_aug_8_aug_13.csv")
+raw_nexta_aug_14_aug_23 <- read_csv("raw_data_csv/nexta_aug_14_aug_23.csv")
+raw_nexta_aug_24_aug_31 <- read_csv("raw_data_csv/nexta_aug_24_aug_31.csv")
+raw_nexta_sep_1_sep_13 <- read_csv("raw_data_csv/nexta_sep_1_sep_13.csv")
+raw_nexta_sep_14_sep_30 <- read_csv("raw_data_csv/nexta_sep_14_sep_30.csv")
+```
+
+```{r}
+#A function that takes data scraped from telegram and converted to csv through https://json-csv.com/
+#And outputs just the columns with network info (links and forwarded from), with NAs in both removed
+
+clean_to_network_cols <- function(data) {
+  data %>%
+    select(messages__text__href, messages__forwarded_from) %>%
+  rename(link = messages__text__href, forwarded = messages__forwarded_from) %>%
+  filter(!is.na(link) | !is.na(forwarded)) 
+}
+
+#Perform above function for nexta data
+nexta_aug_8_aug_13_clean1 <- clean_to_network_cols(raw_nexta_aug_8_aug_13)
+
+nexta_aug_14_aug_23_clean1 <- clean_to_network_cols(raw_nexta_aug_14_aug_23)
+
+nexta_aug_24_aug_31_clean1 <- clean_to_network_cols(raw_nexta_aug_24_aug_31)
+
+nexta_sep_1_sep_13_clean1 <- clean_to_network_cols(raw_nexta_sep_1_sep_13)
+
+nexta_sep_14_sep_30_clean1 <- clean_to_network_cols(raw_nexta_sep_14_sep_30)
+
+#Join nexta data into one dataset
+nexta_clean1 <- bind_rows(nexta_aug_8_aug_13_clean1,
+                      nexta_aug_14_aug_23_clean1,
+                      nexta_aug_24_aug_31_clean1,
+                      nexta_sep_1_sep_13_clean1,
+                      nexta_sep_14_sep_30_clean1)
+  
+```
+
+```{r}
+#Change telegram links into forwarded format
+
+change_link_to_name <- function(data) {
+data %>%
+  mutate(network =
+         case_when(!is.na(forwarded) ~ forwarded,
+                   grepl("BlackBookBelarus", link) ~"Черная книга Беларуси",
+                   grepl("joinchat/FOFVqhyzx5Gd3B", link) ~"Neighborhood group",
+                   grepl("luxta_tv", link) ~"LUXTA",
+                   grepl("minsk_eastern_district_107_chat", link) ~"Neighborhood group",
+                   grepl("nexta_live", link) ~"NEXTA Live",
+                   grepl("nexta_tv", link) ~"NEXTA",
+                   grepl("bel_girls", link) ~"GIRL POWER BELARUS",
+                   grepl("BelarusTelegram", link) ~"Беларуский Телеграм",
+                   grepl("Belatp", link) ~"Типичная Беларусь",
+                   grepl("bysol", link) ~"Фонд солидарности BYSOL",
+                   grepl("cpartisans", link) ~"Кибер-Партизаны",
+                   grepl("euroradio", link) ~"Euroradio",
+                   grepl("grankovski", link) ~"Neighborhood group",
+                   grepl("honestpeople_by", link) ~"Честные люди",
+                   grepl("joinchat/AAAAAEjffyoi9hgp9kVhTA", link) ~"МАЯ КРАІНА БЕЛАРУСЬ",
+                   grepl("joinchat/AAAAAEklfX7sPNSO8QXhJw", link) ~"Усы Лукашенко",
+                   grepl("joinchat/AAAAAFPezXkJRKSNTyAm7w", link) ~"Типичная Беларусь",
+                   grepl("joinchat/H6JljhkJIaEk321KqY6YNA", link) ~"Neighborhood group",
+                   grepl("kraina97", link) ~"97%",
+                   grepl("kupalovskiy95", link) ~"Neighborhood group",
+                   grepl("lifeyt", link) ~"ЖЮ",
+                   grepl("MKBelbot", link) ~"МАЯ КРАІНА БЕЛАРУСЬ",
+                   grepl("motolkohelp", link) ~"#МотолькоПомоги этому городишко от 3% избавиться",
+                   grepl("nashaniva", link) ~"Наша Нiва",
+                   grepl("okrug99minsk", link) ~"Neighborhood group",
+                   grepl("otzyv_lagunova", link) ~"Neighborhood group",
+                   grepl("pulpervoi", link) ~"Светлана Тихановская",
+                   grepl("recall_deputy_lenchevskaya", link) ~"Neighborhood group",
+                   grepl("recall_deputy_starovoitova", link) ~"Neighborhood group",
+                   grepl("rh_by", link) ~"Рэгіянальная газета",
+                   grepl("rian_ru", link) ~"РИА Новости",
+                   grepl("stachkom", link) ~"Стачком ОАО Беларуськалий",
+                   grepl("stop_dick", link) ~"Stop Dick",
+                   grepl("stop_dumbadze", link) ~"Neighborhood group",
+                   grepl("thisminsk", link) ~"Это Минск, детка!",
+                   grepl("tutby_official", link) ~"TUT.BY новости",
+                   grepl("zhodino2020", link) ~"Координация помощи в Жодино"
+                   )
+         )
+  
+}
+
+nexta_clean2 <- change_link_to_name(nexta_clean1)
+     
+```
+
+
+```{r}
+#See Nexta's connections!
+count_connections <- function(data) {
+data %>%
+  group_by(network) %>%
+  summarize(count = n(), .groups = "drop") %>%
+  arrange(desc(count))
+}
+
+nexta_connections <- count_connections(nexta_clean2)
+```
+
