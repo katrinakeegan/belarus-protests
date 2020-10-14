@@ -32,6 +32,8 @@ raw_nashaniva <- read_csv("raw_data_csv/nashaniva.csv")
 raw_onliner <- read_csv("raw_data_csv/onliner.csv")
 
 raw_euroradio <- read_csv("raw_data_csv/euroradio.csv")
+
+raw_motolkohelp <- read_csv("raw_data_csv/motolkohelp.csv")
 ```
 
 ```{r}
@@ -195,8 +197,62 @@ data %>%
                    grepl("hrydzinphoto", link) ~"Hrydzin Phototography",
                    grepl("novaya_pishet", link) ~"Новая газета",
                    grepl("aavst55", link) ~"aavst",
-                   
-
+                   grepl("UnileverRussiaNews", link) ~"Unilever в России: о бизнесе, брендах и людях",
+                   grepl("menskdoldrums", link) ~"Менская хандра",
+                   grepl("tabakerka_by", link) ~"Беларусь бастует!",
+                   grepl("polotsk_novopolotsk", link) ~"Полоцк - Новополоцк Беларусь",
+                   grepl("rt_russian", link) ~"RT на русском",
+                   grepl("terroristybelarusi", link) ~"Каратели Беларуси - имена, адреса, родственники",
+                   grepl("praludzej", link) ~"Пра людзей. Беларусь",
+                   grepl("progomel", link) ~"Neighborhood group",
+                   grepl("mediazona_by", link) ~"Медиазона. Беларусь",
+                   grepl("molovTG", link) ~"Молодечно HOME",
+                   grepl("the_village_me", link) ~"The Village Беларусь",
+                   grepl("vybory_smotri", link) ~"Выборы видишь? | TUT.BY Политика",
+                   grepl("spadczyna", link) ~"Спадчына",
+                   grepl("skgovby", link) ~"Следственный комитет Беларуси",
+                   grepl("horadnia", link) ~"Haradzenski",
+                   grepl("hrodnalife", link) ~"Hrodna.life",
+                   grepl("vitebsk97pro", link) ~"Витебск 97%",
+                   grepl("polotsk_i_novopolotsk", link) ~"Полоцк и Новополоцк",
+                   grepl("ntvnews", link) ~"НТВ",
+                   grepl("lebiadok", link) ~"Lebiadok",
+                   grepl("diarius_corporatum", link) ~"Дыярыуш карпаранцкі",
+                   grepl("breakingmash", link) ~"Mash",
+                   grepl("minsk_new", link) ~"Минск: какой народец - такой и городишко",
+                   grepl("iznanka_news", link) ~"Изнанка 18+ | Украина",
+                   grepl("spiski_okrestina", link) ~"Списки Задержанных",
+                   grepl("real_kyiv", link) ~"Real Kyiv",
+                   grepl("meduzalive", link) ~"Медуза — LIVE",
+                   grepl("codaru", link) ~"CodaRU",
+                   grepl("belarus_mythology", link) ~"Мифология Беларуси",
+                   grepl("protest_by", link) ~"Честные новости",
+                   grepl("krasnyj_bor2" | "krasnyj_bor_channel" | "krasnyj_bor" | "krasnyj_bor_chanel", link) ~"Neighborhood group",
+                   grepl("koko_by", link) ~"Мерзкий Кокобай", 
+                   grepl("brestgazetatelegram", link) ~"Брестская газета: новости - 2020",
+                   grepl("BelGram", link) ~ "Беларусь Телеграм Чат",
+                   grepl("suh97pro", link) ~"Neighborhood group",
+                   grepl("MayakMinsk", link) ~"Neighborhood group", 
+                   grepl("sovbelorussia", link) ~"Советская Белоруссия",
+                   grepl("naviny_by", link) ~"Naviny.by",
+                   grepl("joinchat/BRXqnBthP4Ow7jxmEQK8Dw", link) ~ "Neighborhood group",
+                   grepl("joinchat/FVRJK1JydYL_NcAjzr1eXQ", link) ~ "Neighborhood group",
+                   grepl("Len95okrug", link) ~ "Neighborhood group",
+                   grepl("brestcomment", link) ~"Брест - обсуждаем новости города", 
+                   grepl("grodno015by", link) ~ "Сайт Гродно 015.BY", 
+                   grepl("gazetaby", link) ~"Салідарнасць – главные новости Беларуси",
+                   grepl("tribuna_by", link) ~"Tribuna.com Беларусь", 
+                   grepl("Bell_tech", link) ~"The Bell Tech",
+                   grepl("gpkgovby", link) ~"Пограничный комитет Беларуси",
+                   grepl("TheCitizenBelarus", link) ~"Гражданин",
+                   grepl("telegrambelarus", link) ~"Telegram Беларусь",
+                   grepl("harbatsevich", link) ~"HARBACEVIČ",
+                   grepl("zaslavl_new", link) ~"Заславский чат активистов",
+                   grepl("vottaktv", link) ~"Vot Tak TV",
+                   grepl("CatalogTelegram", link) ~"Каталог Telegram", 
+                   grepl("bnr100by", link) ~"Каманда БНР100",
+                   grepl("symbalby", link) ~"SYMBAL.BY",
+                   grepl("joinchat/AAAAAEwwDXiIvnT0OwM8xQ", link) ~"Будни Беларуси"
                    )
          )
   
@@ -271,5 +327,37 @@ euroradio_connections <- count_connections(euroradio_clean2) %>%
   mutate(source = "Euroradio") %>%
   filter(source != network) %>%
   filter(!is.na(network))
+
+motolkohelp_clean1 <- clean_to_network_cols(raw_motolkohelp)
+motolkohelp_clean2 <- change_link_to_name(motolkohelp_clean1)
+motolkohelp_connections <- count_connections(motolkohelp_clean2) %>%
+  mutate(source = "#МотолькоПомоги этому городишко от 3% избавиться") %>%
+  filter(source != network) %>%
+  filter(!is.na(network))
+
+```
+
+```{r}
+big_network <- bind_rows(nexta_connections, 
+                         tutby_connections,
+                         nexta_tv_connections,
+                         luxta_connections,
+                         belamova_connections,
+                         mkbelarus_connections,
+                         nashaniva_connections,
+                         onliner_connections,
+                         euroradio_connections,
+                         motolkohelp_connections)
+
+most_connected <- big_network %>%
+  group_by(network) %>%
+  summarize(total_links = sum(count), .groups = "drop") %>%
+  arrange(desc(total_links)) %>%
+  filter(total_links > 50) %>%
+  filter(!is.na(network))
+
+most_connected %>%
+  ggplot(aes(x = total_links, y = fct_reorder(network, total_links))) +
+    geom_col()
 ```
 
