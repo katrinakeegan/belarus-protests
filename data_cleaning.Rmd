@@ -10,12 +10,28 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 ```
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 raw_nexta_aug_8_aug_13 <- read_csv("raw_data_csv/nexta_aug_8_aug_13.csv")
 raw_nexta_aug_14_aug_23 <- read_csv("raw_data_csv/nexta_aug_14_aug_23.csv")
 raw_nexta_aug_24_aug_31 <- read_csv("raw_data_csv/nexta_aug_24_aug_31.csv")
 raw_nexta_sep_1_sep_13 <- read_csv("raw_data_csv/nexta_sep_1_sep_13.csv")
 raw_nexta_sep_14_sep_30 <- read_csv("raw_data_csv/nexta_sep_14_sep_30.csv")
+
+raw_tutby <- read_csv("raw_data_csv/tutby_official_raw.csv")
+
+raw_nexta_tv <- read_csv("raw_data_csv/raw_nexta_tv.csv")
+
+raw_luxta <- read_csv("raw_data_csv/luxta.csv")
+
+raw_belamova <- read_csv("raw_data_csv/belamova.csv")
+
+raw_mkbelarus <- read_csv("raw_data_csv/mkbelarus.csv")
+
+raw_nashaniva <- read_csv("raw_data_csv/nashaniva.csv")
+
+raw_onliner <- read_csv("raw_data_csv/onliner.csv")
+
+raw_euroradio <- read_csv("raw_data_csv/euroradio.csv")
 ```
 
 ```{r}
@@ -92,7 +108,95 @@ data %>%
                    grepl("stop_dumbadze", link) ~"Neighborhood group",
                    grepl("thisminsk", link) ~"Это Минск, детка!",
                    grepl("tutby_official", link) ~"TUT.BY новости",
-                   grepl("zhodino2020", link) ~"Координация помощи в Жодино"
+                   grepl("zhodino2020", link) ~"Координация помощи в Жодино",
+                   grepl("ATN_BTRC", link) ~"ATN_NEWS",
+                   grepl("bajby", link) ~"БАЖ / BAJ",
+                   grepl("dimsmirnov175", link) ~"Пул N3",
+                   grepl("minzdravbelarus", link) ~"Официальный Минздрав",
+                   grepl("nvonlineby", link) ~"Народная Воля (газета-сайт)",
+                   grepl("radiosvaboda", link) ~"Радыё Свабода — Беларусь",
+                   grepl("rbc_news", link) ~"РБК",
+                   grepl("robabayan", link) ~"Роман Бабаян",
+                   grepl("studenty2020", link) ~"Студэнцкая ініцыятыўная група",
+                   grepl("tass_agency", link) ~"ТАСС",
+                   grepl("viktarbabarykaofficial", link) ~"Виктор Бабарико — официальный канал",
+                   grepl("vladimirlegoyda", link) ~"Владимир Легойда",
+                   grepl("stop_gaiduk", link) ~"Neighborhood group",
+                   grepl("lukanomika", link) ~"ЭКАНОМІКА",
+                   grepl("belsat", link) ~"Белсат",
+                   grepl("bazabazon", link) ~"Baza",
+                   grepl("belarus_blacklist_bot", link) ~"Черная книга Беларуси",
+                   grepl("durov", link) ~"Durov's Channel",
+                   grepl("tsikhanouskaya", link) ~"Светлана Тихановская",
+                   grepl("jivaiagazeta", link) ~"Пенсионеры 97%. Инфо",
+                   grepl("narod97", link) ~"Чат 97%",
+                   grepl("pul_1", link) ~"Пул Первого",
+                   grepl("belamova", link) ~"Беларусь головного мозга",
+                   grepl("bnkbel", link) ~"Баста!",
+                   grepl("gomeltoday", link) ~"Сильные Новости - gomel.today",
+                   grepl("UsyLukashenko", link) ~"Усы Лукашенко",
+                   grepl("RealnaiaBelarus", link) ~"Реальная Беларусь",
+                   grepl("joinchat/AAAAAEFpAvewJ_3iThy5lA", link) ~"Горячие Новости",
+                   grepl("sadmika", link) ~"Грустный Коленька",
+                   grepl("MikolaDziadok", link) ~"MIKOLA",
+                   grepl("worldprotest", link) ~"Протесты в мире",
+                   grepl("vybary", link) ~"Выборы. Беларусь",
+                   grepl("belarus_economy", link) ~"Экономика Беларуси",
+                   grepl("belarusian_history", link) ~"Belarus history",
+                   grepl("belarus_lite", link) ~"Пятая колонка",
+                   grepl("tginfo", link) ~"Telegram Info",
+                   grepl("mkbelarus", link) ~"МАЯ КРАІНА БЕЛАРУСЬ",
+                   grepl("listovki_97", link) ~"Листовки 97%",
+                   grepl("palchys", link) ~"PALCHYS",
+                   grepl("latushka", link) ~"Павел Латушко | Pavel Latushka",
+                   grepl("iSANS_Belarus", link) ~"iSANS Беларусь",
+                   grepl("BlackBookBrest", link) ~"Черная книга local",
+                   grepl("BlackBookVitebsk", link) ~"Черная книга local",
+                   grepl("BlackBookGomel", link) ~"Черная книга local",
+                   grepl("BlackBookGrodno", link) ~"Черная книга local",
+                   grepl("BlackBookMogilev", link) ~"Черная книга local",
+                   grepl("CyberPartisan", link) ~"Кибер Партизаны",
+                   grepl("bychangenews", link) ~"ByChange",
+                   grepl("onlinerby", link) ~"Onliner",
+                   grepl("naukaforpeople", link) ~"Забавная Наука",
+                   grepl("prirodaforpeople", link) ~"Жэсточайшая Природа",
+                   grepl("twarforpeople", link) ~"Жэсточайшие Твари",
+                   grepl("cyberpartisan", link) ~"Кибер Партизаны",
+                   grepl("pramenby", link) ~"Прамень",
+                   grepl("elehtarat", link) ~"Элехтарат",
+                   grepl("joinchat/Iv257x0g4SFPQBYeW-pdow", link) ~"Neighborhood group",
+                   grepl("joinchat/AAAAAEklfX5GcSBexFNnKA", link) ~"Усы Лукашенко",
+                   grepl("joinchat/AAAAAEklfX5GcSBexFNnKA", link) ~"Усы Лукашенко",
+                   grepl("viasna96", link) ~"Вясна / Правы чалавека ў Беларусі",
+                   grepl("studentyBY", link) ~"отчислено",
+                   grepl("s_bdtu", link) ~"Салідарны БДТУ",
+                   grepl("rada_vision", link) ~"Координационный совет",
+                   grepl("pressmvd", link) ~"Пресс-секретарь МВД Беларуси",
+                   grepl("pressballby", link) ~"Спорт Беларуси — Прессбол",
+                   grepl("poezdBY", link) ~"Молодежный поезд",
+                   grepl("peaceful_bsuir", link) ~"Мирный БГУИР",
+                   grepl("minskoemetro", link) ~"Минский метрополитен",
+                   grepl("kyky_org", link) ~"Кулуары KYKY",
+                   grepl("krumkachy", link) ~"Krumkachy",
+                   grepl("klaskouski", link) ~"Klaskouski",
+                   grepl("intexpress", link) ~"Интекс-Пресс Барановичи",
+                   grepl("golosby_bot", link) ~"Голос",
+                   grepl("eu_by", link) ~"Европейская Беларусь",
+                   grepl("cvboard", link) ~"CV board: Honest people/HR Breakfast",
+                   grepl("binklbinkl", link) ~"БИНОКЛЬ",
+                   grepl("belxalat", link) ~"БЕЛЫЕ ХАЛАТЫ",
+                   grepl("belteanews", link) ~"Чай з малинавым варэннем",
+                   grepl("belarusseichas", link) ~"Беларусь Сейчас",
+                   grepl("belarusin", link) ~"ЧП Беларусь",
+                   grepl("mbkhmedia", link) ~"МБХ медиа",
+                   grepl("khliabets", link) ~"Khliabets",
+                   grepl("MSTBELARUS", link) ~"Пресс-служба Министерства спорта и туризма",
+                   grepl("LptSM1dPAC3ro5_GRi8E1Q", link) ~"Каментатарская",
+                   grepl("hrydzinphoto", link) ~"Hrydzin Phototography",
+                   grepl("novaya_pishet", link) ~"Новая газета",
+                   grepl("aavst55", link) ~"aavst",
+                   
+
                    )
          )
   
@@ -112,6 +216,60 @@ data %>%
   arrange(desc(count))
 }
 
-nexta_connections <- count_connections(nexta_clean2)
+nexta_connections <- count_connections(nexta_clean2) %>%
+  mutate(source = "NEXTA Live")
+```
+
+```{r}
+#Now doing the rest of the outlets
+tutby_clean1 <- clean_to_network_cols(raw_tutby)
+tutby_clean2 <- change_link_to_name(tutby_clean1)
+tutby_connections <- count_connections(tutby_clean2)%>%
+  mutate(source = "TUT.BY новости")
+
+nexta_tv_clean1 <- clean_to_network_cols(raw_nexta_tv)
+nexta_tv_clean2 <- change_link_to_name(nexta_tv_clean1)
+nexta_tv_connections <- count_connections(nexta_tv_clean2) %>%
+  mutate(source = "NEXTA")
+
+luxta_clean1 <- clean_to_network_cols(raw_luxta)
+luxta_clean2 <- change_link_to_name(luxta_clean1)
+luxta_connections <- count_connections(luxta_clean2) %>%
+  mutate(source = "LUXTA") %>%
+  filter(source != network)
+
+belamova_clean1 <- clean_to_network_cols(raw_belamova)
+belamova_clean2 <- change_link_to_name(belamova_clean1)
+belamova_connections <- count_connections(belamova_clean2) %>%
+  mutate(source = "Беларусь головного мозга") %>%
+  filter(source != network)
+
+mkbelarus_clean1 <- clean_to_network_cols(raw_mkbelarus)
+mkbelarus_clean2 <- change_link_to_name(mkbelarus_clean1)
+mkbelarus_connections <- count_connections(mkbelarus_clean2) %>%
+  mutate(source = "МАЯ КРАІНА БЕЛАРУСЬ") %>%
+  filter(source != network) %>%
+  filter(!is.na(network))
+
+nashaniva_clean1 <- clean_to_network_cols(raw_nashaniva)
+nashaniva_clean2 <- change_link_to_name(nashaniva_clean1)
+nashaniva_connections <- count_connections(nashaniva_clean2) %>%
+  mutate(source = "Наша Нiва") %>%
+  filter(source != network) %>%
+  filter(!is.na(network))
+
+onliner_clean1 <- clean_to_network_cols(raw_onliner)
+onliner_clean2 <- change_link_to_name(onliner_clean1)
+onliner_connections <- count_connections(onliner_clean2) %>%
+  mutate(source = "Onliner") %>%
+  filter(source != network) %>%
+  filter(!is.na(network))
+
+euroradio_clean1 <- clean_to_network_cols(raw_euroradio)
+euroradio_clean2 <- change_link_to_name(euroradio_clean1)
+euroradio_connections <- count_connections(euroradio_clean2) %>%
+  mutate(source = "Euroradio") %>%
+  filter(source != network) %>%
+  filter(!is.na(network))
 ```
 
