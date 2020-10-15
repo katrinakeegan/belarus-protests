@@ -34,6 +34,8 @@ raw_onliner <- read_csv("raw_data_csv/onliner.csv")
 raw_euroradio <- read_csv("raw_data_csv/euroradio.csv")
 
 raw_motolkohelp <- read_csv("raw_data_csv/motolkohelp.csv")
+
+raw_kyky <- read_csv("raw_data_csv/kyky.csv")
 ```
 
 ```{r}
@@ -227,7 +229,6 @@ data %>%
                    grepl("codaru", link) ~"CodaRU",
                    grepl("belarus_mythology", link) ~"Мифология Беларуси",
                    grepl("protest_by", link) ~"Честные новости",
-                   grepl("krasnyj_bor2" | "krasnyj_bor_channel" | "krasnyj_bor" | "krasnyj_bor_chanel", link) ~"Neighborhood group",
                    grepl("koko_by", link) ~"Мерзкий Кокобай", 
                    grepl("brestgazetatelegram", link) ~"Брестская газета: новости - 2020",
                    grepl("BelGram", link) ~ "Беларусь Телеграм Чат",
@@ -252,10 +253,10 @@ data %>%
                    grepl("CatalogTelegram", link) ~"Каталог Telegram", 
                    grepl("bnr100by", link) ~"Каманда БНР100",
                    grepl("symbalby", link) ~"SYMBAL.BY",
-                   grepl("joinchat/AAAAAEwwDXiIvnT0OwM8xQ", link) ~"Будни Беларуси"
+                   grepl("joinchat/AAAAAEwwDXiIvnT0OwM8xQ", link) ~"Будни Беларуси",
+                    grepl("krasnyj_bor", link) ~"Neighborhood group"
                    )
          )
-  
 }
 
 nexta_clean2 <- change_link_to_name(nexta_clean1)
@@ -273,7 +274,8 @@ data %>%
 }
 
 nexta_connections <- count_connections(nexta_clean2) %>%
-  mutate(source = "NEXTA Live")
+  mutate(source = "NEXTA Live") %>%
+  filter(source != network)
 ```
 
 ```{r}
@@ -281,12 +283,14 @@ nexta_connections <- count_connections(nexta_clean2) %>%
 tutby_clean1 <- clean_to_network_cols(raw_tutby)
 tutby_clean2 <- change_link_to_name(tutby_clean1)
 tutby_connections <- count_connections(tutby_clean2)%>%
-  mutate(source = "TUT.BY новости")
+  mutate(source = "TUT.BY новости") %>%
+  filter(source != network)
 
 nexta_tv_clean1 <- clean_to_network_cols(raw_nexta_tv)
 nexta_tv_clean2 <- change_link_to_name(nexta_tv_clean1)
 nexta_tv_connections <- count_connections(nexta_tv_clean2) %>%
-  mutate(source = "NEXTA")
+  mutate(source = "NEXTA") %>%
+  filter(source != network)
 
 luxta_clean1 <- clean_to_network_cols(raw_luxta)
 luxta_clean2 <- change_link_to_name(luxta_clean1)
@@ -335,25 +339,103 @@ motolkohelp_connections <- count_connections(motolkohelp_clean2) %>%
   filter(source != network) %>%
   filter(!is.na(network))
 
+kyky_clean1 <- clean_to_network_cols(raw_kyky)
+kyky_clean2 <- change_link_to_name(kyky_clean1)
+kyky_connections <- count_connections(kyky_clean2) %>%
+  mutate(source = "Кулуары KYKY") %>%
+  filter(source != network) %>%
+  filter(!is.na(network))
+
+radiosvaboda_clean2 <- read_csv("raw_data_csv/radiosvaboda.csv") %>%
+  clean_to_network_cols() %>%
+  change_link_to_name()
+
 ```
+
+
+```{r}
+create_connections <- function(data, name) {
+  read_csv(data, col_types = cols(
+  .default = col_character(),
+  id = col_double(),
+  messages__id = col_double(),
+  messages__date = col_datetime(format = ""),
+  messages__edited = col_datetime(format = ""),
+  messages__from_id = col_double(),
+  messages__duration_seconds = col_double(),
+  messages__width = col_double(),
+  messages__height = col_double(),
+  messages__reply_to_message_id = col_double()
+)) %>%
+    clean_to_network_cols() %>%
+    change_link_to_name() %>%
+    count_connections() %>%
+    mutate(source = name) %>%
+    filter(source != network) %>%
+    filter(!is.na(network))
+}
+
+kyky_connections <- create_connections("raw_data_csv/kyky.csv", "Кулуары KYKY")
+
+belsat_connections <- create_connections("raw_data_csv/belsat.csv", "Белсат")
+
+radiosvaboda_connections <- create_connections("raw_data_csv/radiosvaboda.csv", "Радыё Свабода — Беларусь")
+
+usylukashenko_connections <- create_connections("raw_data_csv/usylukashenko.csv", "Усы Лукашенко")
+
+tsikhanouskaya_connections <- create_connections("raw_data_csv/tsikhanouskaya.csv", "Светлана Тихановская")
+
+blackbookbelarus_connections <- create_connections("raw_data_csv/blackbookbelarus.csv", "Черная книга Беларуси")
+
+belteanews_connections <- create_connections("raw_data_csv/belteanews.csv", "Чай з малинавым варэннем")
+
+tribuna_by_connections <- create_connections("raw_data_csv/tribuna_by.csv", "Tribuna.com Беларусь")
+
+studenty_by_connections <- create_connections("raw_data_csv/studenty_by.csv", "отчислено")
+
+pressmvd_connections <- create_connections("raw_data_csv/pressmvd.csv", "Пресс-секретарь МВД Беларуси")
+
+mc_maxim_connections <- create_connections("raw_data_csv/mc_maxim.csv", "Работаем с Пушкиным!")
+
+viasna96_connections <- create_connections("raw_data_csv/viasna96.csv", "Вясна / Правы чалавека ў Беларусі")
+
+bajby_connections <- create_connections("raw_data_csv/bajby.csv", "БАЖ / BAJ")
+
+```
+
 
 ```{r}
 big_network <- bind_rows(nexta_connections, 
                          tutby_connections,
                          nexta_tv_connections,
-                         luxta_connections,
                          belamova_connections,
                          mkbelarus_connections,
                          nashaniva_connections,
                          onliner_connections,
                          euroradio_connections,
-                         motolkohelp_connections)
+                         motolkohelp_connections,
+                         kyky_connections,
+                         belsat_connections,
+                         radiosvaboda_connections,
+                         usylukashenko_connections,
+                         tsikhanouskaya_connections,
+                         blackbookbelarus_connections,
+                         belteanews_connections,
+                         tribuna_by_connections,
+                         studenty_by_connections,
+                         pressmvd_connections,
+                         mc_maxim_connections,
+                         viasna96_connections,
+                         bajby_connections)
+
+big_network_greater20 <- big_network %>%
+  filter(count > 9)
 
 most_connected <- big_network %>%
   group_by(network) %>%
   summarize(total_links = sum(count), .groups = "drop") %>%
   arrange(desc(total_links)) %>%
-  filter(total_links > 50) %>%
+  slice(1:21) %>%
   filter(!is.na(network))
 
 most_connected %>%
