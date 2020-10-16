@@ -401,6 +401,13 @@ viasna96_connections <- create_connections("raw_data_csv/viasna96.csv", "Вяс�
 
 bajby_connections <- create_connections("raw_data_csv/bajby.csv", "БАЖ / BAJ")
 
+minsk_eastern_district_107_chat_connections <- create_connections("raw_data_csv/minsk_eastern_district_107_chat.csv", "Neighborhood Example 1")
+
+recall_deputy_lenchevskaya_connections <- create_connections("raw_data_csv/recall_deputy_lenchevskaya.csv", "Neighborhood Example 2")
+
+stop_gaiduk_connections <- create_connections("raw_data_csv/stop_gaiduk.csv", "Neighborhood Example 3")
+
+
 ```
 
 
@@ -426,7 +433,10 @@ big_network <- bind_rows(nexta_connections,
                          pressmvd_connections,
                          mc_maxim_connections,
                          viasna96_connections,
-                         bajby_connections)
+                         bajby_connections,
+                         minsk_eastern_district_107_chat_connections,
+                         recall_deputy_lenchevskaya_connections,
+                         stop_gaiduk_connections)
 
 big_network_greater20 <- big_network %>%
   filter(count > 9)
