@@ -2,6 +2,7 @@
 
 library(shiny)
 library(shinythemes)
+library(tidyverse)
 
 shinyUI(
     navbarPage(theme = shinytheme("journal"), 
@@ -13,8 +14,23 @@ shinyUI(
                         
                         #All the stuff
                         ),
+               
+               
                tabPanel("Most important channels",
-                        plotOutput("mostConnected")
+                        sidebarLayout(
+                          sidebarPanel(
+                            sliderInput("x_axis_range_subscribers", #Name of the thing in server which will be used as a variable
+                                        "X axis range", #What is displayed to user
+                                        min = 0,
+                                        max = 2000000,
+                                        value = c(0, 2000000))
+                          ),
+                          mainPanel(
+                            plotOutput("subscribers")
+                        ),
+                        
+                        ),
+                
                         
                         ),
                
