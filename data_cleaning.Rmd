@@ -312,7 +312,7 @@ library(readxl)
                            vybory_smotri_connections) %>%
     relocate(source, .before = network)
 
-saveRDS(big_network, file = "big_network.RDS")
+saveRDS(big_network, file = "clean_data/big_network.RDS")
 
 
 ```
@@ -380,11 +380,11 @@ corpus_network_info <- full_join(total_links, unique_links, by = "channel") %>%
   )) %>%
   inner_join(telegram_corpus, by = "channel")
 
-saveRDS(corpus_network_info, "corpus_network_info.RDS")
+saveRDS(corpus_network_info, "clean_data/corpus_network_info.RDS")
   
 ```
 
-```{r}
+```{r plot for later 1}
 #Plots to copy and paste later
 corpus_network_info %>%
   ggplot(aes(x = subscribers, 
@@ -399,6 +399,26 @@ corpus_network_info %>%
     theme(legend.position = "top", legend.text = element_text(size = 7)) +
     scale_fill_discrete(labels = c("Hub (more links to other channels)", "Source (more links from other channels)", "Unclear"))
 ```
+
+```{r plot for later 2}
+corpus_network_info %>%
+  pivot_longer(cols = c(total_links_from_channel, total_links_to_channel), names_to = "from_to_total") %>%
+  ggplot(aes(x = subscribers, y = value, color = from_to)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = lm,
+              formula = y ~ x,
+              se = FALSE) +
+  theme_bw() +
+  labs(title = "Relationship between number of subscribers and channel links",
+       color = " ",
+       y = " ",
+       x = "subscribers") +
+  theme(legend.position = "bottom") + 
+  scale_color_discrete(labels = c("Links and shares from channel", "Links and shares to channel"))
+  
+
+```
+
 
 
 ```{r messing around}

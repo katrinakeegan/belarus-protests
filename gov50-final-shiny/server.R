@@ -9,11 +9,12 @@
 
 library(shiny)
 library(tidyverse)
+library(scales)
 
 shinyServer(function(input, output) {
 
     output$subscribers <- renderPlot({
-      corpus_network_info <- readRDS("corpus_network_info.RDS")
+      corpus_network_info <- readRDS("clean_data/corpus_network_info.RDS")
       corpus_network_info %>%
         ggplot(aes(x = subscribers, 
                    y = fct_reorder(url, subscribers),
@@ -24,9 +25,42 @@ shinyServer(function(input, output) {
              y = "Channel URL",
              fill = " ") +
         theme_bw() +
-        xlim(input$x_axis_range_subscribers)
         theme(legend.position = "top", legend.text = element_text(size = 7)) +
-        scale_fill_discrete(labels = c("Hub (more links to other channels)", "Source (more links from other channels)", "Unclear"))
+        scale_fill_discrete(labels = c("Hub (more links to other channels)", "Source (more links from other channels)", "Unclear")) +
+        scale_x_continuous(labels = comma) +
+        xlim(input$x_axis_range_subscribers)
     })
+    
 
+    output$linksBySubscribers <- renderPlot({
+      corpus_network_info %>%
+        pivot_longer(cols = c(total_links_from_channel, total_links_to_channel), 
+                     names_to = "from_to_total",
+                     values_to = "total_values") %>%
+        pivot_longer(cols = c(unique_links_from_channel, unique_links_to_channel), 
+                     names_to = "from_to_unique",
+                     values_to = "unique_values") %>%
+        ggplot(aes(x = subscribers, 
+                   y = case_when(
+                     input$which_type_linksBySubscribers == "from_to_total" ~ total_values,
+                     TRUE ~ unique_values),
+                   color = case_when(
+                    input$which_type_linksBySubscribers == "from_to_total" ~ from_to_total,
+                    TRUE ~ from_to_unique
+                     ))) +
+        geom_point(alpha = 0.5) +
+        geom_smooth(method = lm,
+                    formula = y ~ x,
+                    se = FALSE) +
+        theme_bw() +
+        labs(title = "Relationship between number of subscribers and channel links",
+             color = " ",
+             y = " ",
+             x = "subscribers") +
+        theme(legend.position = "bottom") + 
+        scale_color_discrete(labels = c("Links and shares from channel", "Links and shares to channel"))
+      
+    }) 
+      
+    
 })

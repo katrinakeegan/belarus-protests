@@ -27,10 +27,19 @@ shinyUI(
                           ),
                           mainPanel(
                             plotOutput("subscribers")
-                        ),
-                        
-                        ),
-                
+                        )),
+                        sidebarLayout(
+                          sidebarPanel(
+                            selectInput("which_type_linksBySubscribers",
+                                        "Method of counting links:",
+                                        c("Total links from and to other outlets" = "from_to_total",
+                                          "Number of unique outlets linked to and from" = "from_to_unique")
+                                        )
+                          ),
+                          mainPanel(
+                            plotOutput("linksBySubscribers")
+                          )
+                        )
                         
                         ),
                
