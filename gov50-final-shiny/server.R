@@ -33,6 +33,7 @@ shinyServer(function(input, output) {
     
 
     output$linksBySubscribers <- renderPlot({
+      corpus_network_info <- readRDS("clean_data/corpus_network_info.RDS")
       corpus_network_info %>%
         pivot_longer(cols = c(total_links_from_channel, total_links_to_channel), 
                      names_to = "from_to_total",

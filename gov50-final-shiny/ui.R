@@ -3,6 +3,7 @@
 library(shiny)
 library(shinythemes)
 library(tidyverse)
+library(scales)
 
 shinyUI(
     navbarPage(theme = shinytheme("journal"), 
@@ -20,7 +21,7 @@ shinyUI(
                         sidebarLayout(
                           sidebarPanel(
                             sliderInput("x_axis_range_subscribers", #Name of the thing in server which will be used as a variable
-                                        "X axis range", #What is displayed to user
+                                        "Zoom in on a particular part of the graph", #What is displayed to user
                                         min = 0,
                                         max = 2000000,
                                         value = c(0, 2000000))
