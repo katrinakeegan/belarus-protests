@@ -12,6 +12,7 @@ library(tidygraph)
 library(ggraph)
 library(igraph)
 library(readxl)
+library(tm)
 ```
 
 
@@ -465,5 +466,44 @@ plot.igraph(network_graph,
             vertex.label = NA,
             edge.arrow.size = network_graph$count,
             vertex.size = V(network_graph)$degree * 0.5)
+```
+
+```{r}
+#This section is about cleaning the text data
+raw_nexta <- read_csv("raw_data_csv/nexta_live.csv", col_types = cols(
+  .default = col_character(),
+  id = col_double(),
+  messages__id = col_double(),
+  messages__date = col_datetime(format = ""),
+  messages__from_id = col_double(),
+  messages__edited = col_datetime(format = ""),
+  messages__width = col_double(),
+  messages__height = col_double(),
+  messages__reply_to_message_id = col_double(),
+  messages__duration_seconds = col_double(),
+  messages__actor_id = col_double(),
+  messages__message_id = col_double(),
+  messages__poll__closed = col_logical(),
+  messages__poll__total_voters = col_double(),
+  messages__poll__answers__voters = col_double(),
+  messages__poll__answers__chosen = col_logical()
+))
+
+nexta_text_clean <- raw_nexta %>%
+  select(messages__id, messages__date, messages__text, messages__text__text) %>%
+  rename(id = messages__id, date = messages__date, text1 = messages__text, text2 = messages__text__text) %>%
+  mutate(text_raw = ifelse(is.na(text1), text2, text1)) %>%
+  select(id, date, text_raw) %>%
+  filter(!is.na(text_raw)) %>%
+  fill(id, date, .direction = "down") %>%
+  
+  #This doesn't work 
+  mutate(text_no_n = str_remove(text_raw, pattern = "\n")) %>%
+  mutate(text_no_num = removeNumbers(text_no_n)) %>%
+  mutate(text_no_punc = removePunctuation(text_no_num)) %>%
+  mutate(text_list = map(text_no_punc, ~str_split(., pattern = " "))) %>%
+  
+  #Can't get it to unnest so that each word has own row
+  pmap_dfr(data.frame)
 ```
 
