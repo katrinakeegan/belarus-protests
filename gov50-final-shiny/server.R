@@ -62,6 +62,23 @@ shinyServer(function(input, output) {
         scale_color_discrete(labels = c("Links and shares from channel", "Links and shares to channel"))
       
     }) 
-      
+    
+    output$externalLinks <- renderPlot({
+      big_outside_network <- readRDS("clean_data/big_outside_network.RDS")
+      big_outside_network %>%
+        group_by(domain) %>%
+        summarize(total = n(), 
+                  .groups = "drop") %>%
+        filter(domain != "t.me") %>%
+        arrange(desc(total)) %>%
+        slice(1:30) %>%
+        ggplot(aes(x = total, y = fct_reorder(domain, total))) +
+        geom_col() +
+        labs(title = "Total external links",
+             subtitle = "Mostly other social media networks, sites linked to telegram channels, \nand other news sites",
+             x = "",
+             y = "domain of link") +
+        theme_bw()
+    })  
     
 })

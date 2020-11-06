@@ -561,6 +561,8 @@ create_outside_connections <- function(data, name) {
                            recall_deputy_lenchevskaya_outside_connections,
                            stop_gaiduk_outside_connections,
                            vybory_smotri_outside_connections)
+  
+saveRDS(big_outside_network, "big_outside_network.RDS")
 
 big_outside_network %>%
   group_by(domain) %>%
@@ -572,6 +574,7 @@ big_outside_network %>%
   ggplot(aes(x = total, y = fct_reorder(domain, total))) +
   geom_col() +
   labs(title = "Total external links",
+       subtitle = "Mostly other social media networks, sites linked to telegram channels, and other news sites",
        x = "",
        y = "domain of link")
   

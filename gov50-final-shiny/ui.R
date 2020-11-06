@@ -40,8 +40,15 @@ shinyUI(
                           mainPanel(
                             plotOutput("linksBySubscribers")
                           )
+                        ),
+                        sidebarLayout(
+                          sidebarPanel(
+                            
+                          ),
+                          mainPanel(
+                            plotOutput("externalLinks")
+                          )
                         )
-                        
                         ),
                
                tabPanel( "About me",
