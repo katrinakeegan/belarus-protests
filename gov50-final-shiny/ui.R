@@ -19,6 +19,9 @@ shinyUI(
                
                tabPanel("Most important channels",
                         sidebarLayout(
+                          
+                          #In sidebarLayout need both sidebarPanel and mainPanel within the parentheses
+                          
                           sidebarPanel(
                             sliderInput("x_axis_range_subscribers", #Name of the thing in server which will be used as a variable
                                         "Zoom in on a particular part of the graph", #What is displayed to user

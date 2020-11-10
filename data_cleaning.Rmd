@@ -610,9 +610,10 @@ nexta_text_clean <- raw_nexta %>%
   filter(!is.na(text_raw)) %>%
   fill(id, date, .direction = "down") %>%
   
-  #This doesn't work 
-  #Maybe try UTF-8 encoding
-  mutate(text_no_n = gsub("\n", "", text_raw)) %>%
+  #Removing the line breaks does not work
+  #I tried gsub("\n", "", text_raw) as well as gsub("[\r\n]") and the UTF-8 encoding "U+000A."
+  
+  mutate(text_no_n = gsub("U+000A", "", text_raw)) %>%
   #mutate(text_no_n = str_replace(text_raw, pattern = "\n")) %>%
   mutate(text_no_num = removeNumbers(text_no_n)) %>%
   mutate(text_no_punc = removePunctuation(text_no_num)) %>%

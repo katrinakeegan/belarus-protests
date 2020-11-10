@@ -35,7 +35,12 @@ shinyServer(function(input, output) {
     output$linksBySubscribers <- renderPlot({
       corpus_network_info <- readRDS("clean_data/corpus_network_info.RDS")
       corpus_network_info %>%
-        pivot_longer(cols = c(total_links_from_channel, total_links_to_channel), 
+        pivot_longer(cols = c(total_links_from_channel, total_links_to_channel),
+                     
+                     #From_to_total and from_to_unique are two categories just "from" and "to"
+                     #There is a value for each of them for each outlet
+                     #This allowed me to make the colors and hence lines vary by the from and to 
+                     
                      names_to = "from_to_total",
                      values_to = "total_values") %>%
         pivot_longer(cols = c(unique_links_from_channel, unique_links_to_channel), 
