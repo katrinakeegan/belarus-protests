@@ -14,6 +14,8 @@ library(igraph)
 library(readxl)
 library(tm)
 library(urltools)
+library(corpus)
+library(splus2R)
 ```
 
 
@@ -583,6 +585,77 @@ big_outside_network %>%
 
 ```{r}
 #This section is about cleaning the text data
+
+clean_text <- function(data, name){
+  read_csv(data, col_types = cols(
+  .default = col_character(),
+  id = col_double(),
+  messages__id = col_double(),
+  messages__date = col_datetime(format = ""),
+  messages__from_id = col_double(),
+  messages__edited = col_datetime(format = ""),
+  messages__width = col_double(),
+  messages__height = col_double(),
+  messages__reply_to_message_id = col_double(),
+  messages__duration_seconds = col_double(),
+  messages__actor_id = col_double(),
+  messages__message_id = col_double(),
+  messages__poll__closed = col_logical(),
+  messages__poll__total_voters = col_double(),
+  messages__poll__answers__voters = col_double(),
+  messages__poll__answers__chosen = col_logical()
+))%>%
+  select(messages__id, messages__date, messages__text, messages__text__text) %>%
+  rename(id = messages__id, date = messages__date, text1 = messages__text, text2 = messages__text__text) %>%
+  mutate(text_raw = ifelse(is.na(text1), text2, text1)) %>%
+  select(id, date, text_raw) %>%
+  filter(!is.na(text_raw)) %>%
+  fill(id, date, .direction = "down") %>%
+  
+  #Removing line breaks proved to be difficult
+  #I tried gsub("\n", "", text_raw) as well as:
+  #[\r\n]
+  #[\n]
+  #the UTF-8 encoding U+000A with and without [] and <>. 
+  #The ultimate answer was [\\n], credit to Wyatt Hurt for resolving this issue!
+  
+  mutate(text_no_n = gsub("[\\n]", "", text_raw)) %>%
+  mutate(text_no_punc = removePunctuation(text_no_n)) %>%
+  mutate(text_no_num = removeNumbers(text_no_punc)) %>%
+  mutate(text_no_caps = lowerCase(text_no_num)) %>%
+  
+  #the following code creates a list column for which each word is a separate element
+  #I initially tried to map, that did NOT work because it created a tibble which I could not unnest
+  #Credit to Wyatt Hurt for resolving this issue!
+  
+  mutate(text_list = str_split(text_no_caps, " ")) %>%
+  unnest(col = text_list) %>%
+  rename(word_raw = text_list) %>%
+  select(id, date, word_raw) %>%
+  
+  #Needed to remove stopwords before stemming because otherwise didn't catch them all
+  
+  filter(!word_raw %in% stopwords(kind = "ru")) %>%
+  
+  #This stemmer is very crude but it is the best R has. Python has much better options
+  
+  mutate(word_stemmed = stem_snowball(word_raw, "ru"))
+}
+
+count_words <- function(data){
+  data %>%
+  group_by(word_stemmed) %>%
+  summarize(count = n(), .groups = "drop") %>%
+  arrange(desc(count))
+}
+
+#Original code used to make functions 
+
+nexta_words <- nexta_text_clean %>%
+  group_by(word_stemmed) %>%
+  summarize(count = n(), .groups = "drop") %>%
+  arrange(desc(count))
+
 raw_nexta <- read_csv("raw_data_csv/nexta_live.csv", col_types = cols(
   .default = col_character(),
   id = col_double(),
@@ -610,27 +683,40 @@ nexta_text_clean <- raw_nexta %>%
   filter(!is.na(text_raw)) %>%
   fill(id, date, .direction = "down") %>%
   
-  #Removing the line breaks does not work
+  #Removing line breaks proved to be difficult
   #I tried gsub("\n", "", text_raw) as well as:
   #[\r\n]
   #[\n]
   #the UTF-8 encoding U+000A with and without [] and <>. 
-  #Removing punctuation first and then removing n seems to work but might also remove some useful n's. Hopefully none were all that important since important words will be in Russian anyway.
+  #The ultimate answer was [\\n], credit to Wyatt Hurt for resolving this issue!
   
-  mutate(text_no_punc = removePunctuation(text_raw)) %>%
-  mutate(text_no_n = gsub("n", "", text_no_punc)) %>%
-  #mutate(text_no_n = str_replace(text_raw, pattern = "\n")) %>%
-  mutate(text_no_num = removeNumbers(text_no_n)) %>%
+  mutate(text_no_n = gsub("[\\n]", "", text_raw)) %>%
+  mutate(text_no_punc = removePunctuation(text_no_n)) %>%
+  mutate(text_no_num = removeNumbers(text_no_punc)) %>%
+  mutate(text_no_caps = lowerCase(text_no_num)) %>%
   
   #the following code creates a list column for which each word is a separate element
+  #I initially tried to map, that did NOT work because it created a tibble which I could not unnest
+  #Credit to Wyatt Hurt for resolving this issue!
   
-  mutate(text_list = map(text_no_num, ~str_split(., pattern = " "))) %>%
+  mutate(text_list = str_split(text_no_caps, " ")) %>%
+  unnest(col = text_list) %>%
+  rename(word_raw = text_list) %>%
+  select(id, date, word_raw) %>%
   
-  #Now I want each word to have its own row
-  #This code is basically useless since it just unnests lists with only one element in the first place unnest_longer(col = text_list)
-  #This doesn't work either: pivot_longer(cols = text_list)
-  #I think the problem has to do with the list elements being different lengths? 
+  #Needed to remove stopwords before stemming because otherwise didn't catch them all
   
-  unnest(col = text_list)
+  filter(!word_raw %in% stopwords(kind = "ru")) %>%
+  
+  #This stemmer is very crude but it is the best R has. Python has much better options
+  
+  mutate(word_stemmed = stem_snowball(word_raw, "ru"))
+
+nexta_words <- nexta_text_clean %>%
+  group_by(word_stemmed) %>%
+  summarize(count = n(), .groups = "drop") %>%
+  arrange(desc(count))
+
+
 ```
 
