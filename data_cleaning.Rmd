@@ -443,32 +443,68 @@ most_connected %>%
 ```
 
 
-```{r}
+```{r network graph}
+#this section is for making the network graph
+
 #I followed instructions here: https://www.jessesadler.com/post/network-analysis-with-r/
 #https://www.youtube.com/watch?v=0xsM0MbRPGE
 
-small_network <- big_network %>%
-  filter(count >= 50)
+#Here I am creating a smaller network with just the connections that relate to the 26 for which I gathered data 
 
-nodes <- small_network %>%
+#This little trick of network %in% source worked beautifully to take only those observations for which the network data is also one of the sources
+
+small_network <- big_network %>%
+  filter(network %in% source)
+
+#This just creates a list of the nodes and gives them an id number
+
+#It would be good if the nodes here could also have the @name to be more English-friendly. 
+
+small_nodes <- small_network %>%
   distinct(network) %>%
   rename(label = network) %>%
   rowid_to_column("id")
 
-edges <- small_network %>%
+#This creates a list of edges using the id numbers
+#The first step is to do a left join that adds the id numbers of the network to the matching id , and then rename that as "to"
+#Then I do the same except for the sources, renaming the label to "from"
+
+small_edges <- small_network %>%
   left_join(nodes, by = c("network" = "label")) %>%
   rename(to = id) %>%
   left_join(nodes, by = c("source" = "label")) %>%
   rename(from = id) %>%
-  select(to, from, count)
+  rename(weight = count) %>%
+  select(to, from, weight)
 
-network_graph <- graph_from_data_frame(d = small_network, directed = T)
-V(network_graph)$degree <- degree(network_graph)
+#D is the edges, and vertices argument is for the nodes.
+
+small_network_graph <- graph_from_data_frame(d = small_edges, directed = T, vertices = small_nodes)
+
+#V(network_graph)$degree <- degree(network_graph)
+
+#I think my from and to might be reversed?
+
+plot.igraph(small_network_graph,
+            vertex.label.cex = 0.6, #reduces font size
+            edge.arrow.size = 0.3, #Need edge here not just arrow.size
+            vertex.size = 10,
+            edge.width = E(small_network_graph)$weight / 100,
+            edge.curved = 0.3
+            ) 
+
 plot.igraph(network_graph, 
             vertex.color = "white",
             vertex.label = NA,
             edge.arrow.size = network_graph$count,
             vertex.size = V(network_graph)$degree * 0.5)
+
+ggraph(small_network_graph, layout = "lgl") +
+  geom_edge_fan(aes(alpha = log(weight))) +
+  geom_node_text(aes(label = V(small_network_graph)$label),
+                 size = 2,
+                 color = "red")
+  
 ```
 
 ```{r, warning = FALSE}
