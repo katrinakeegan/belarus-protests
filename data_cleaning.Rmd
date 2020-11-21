@@ -463,19 +463,28 @@ small_network <- big_network %>%
 small_nodes <- small_network %>%
   distinct(network) %>%
   rename(label = network) %>%
-  rowid_to_column("id")
+  rowid_to_column("id") %>%
+
+#Now adding other info form corpus_network_info
+  
+  full_join(corpus_network_info, by = c("label" = "channel"))
 
 #This creates a list of edges using the id numbers
 #The first step is to do a left join that adds the id numbers of the network to the matching id , and then rename that as "to"
 #Then I do the same except for the sources, renaming the label to "from"
+#Actually for some reason had to be reversed which is making my head hurt to logically think through but the code below does work correctly 
+
+saveRDS(small_nodes, "gov50-final-shiny/clean_data/small_nodes.RDS")
 
 small_edges <- small_network %>%
-  left_join(nodes, by = c("network" = "label")) %>%
+  left_join(small_nodes, by = c("source" = "label")) %>%
   rename(to = id) %>%
-  left_join(nodes, by = c("source" = "label")) %>%
+  left_join(small_nodes, by = c("network" = "label")) %>%
   rename(from = id) %>%
   rename(weight = count) %>%
   select(to, from, weight)
+
+saveRDS(small_edges, "gov50-final-shiny/clean_data/small_edges.RDS")
 
 #D is the edges, and vertices argument is for the nodes.
 
@@ -483,27 +492,46 @@ small_network_graph <- graph_from_data_frame(d = small_edges, directed = T, vert
 
 #V(network_graph)$degree <- degree(network_graph)
 
-#I think my from and to might be reversed?
+#no igraph plot.igraph(small_network_graph,
+            #vertex.label.cex = 0.6, #reduces font size
+            #edge.arrow.size = 0.3, #Need edge here not just arrow.size
+            #vertex.size = 10,
+            #edge.width = E(small_network_graph)$weight / 100,
+            #edge.curved = 0.3
+            #) 
 
-plot.igraph(small_network_graph,
-            vertex.label.cex = 0.6, #reduces font size
-            edge.arrow.size = 0.3, #Need edge here not just arrow.size
-            vertex.size = 10,
-            edge.width = E(small_network_graph)$weight / 100,
-            edge.curved = 0.3
-            ) 
+# Not using igraph plot.igraph(network_graph, 
+           # vertex.color = "white",
+           # vertex.label = NA,
+           # edge.arrow.size = network_graph$count,
+            #vertex.size = V(network_graph)$degree * 0.5)
 
-plot.igraph(network_graph, 
-            vertex.color = "white",
-            vertex.label = NA,
-            edge.arrow.size = network_graph$count,
-            vertex.size = V(network_graph)$degree * 0.5)
+
+#Plot 1: simple graph with arrows and labels 
 
 ggraph(small_network_graph, layout = "lgl") +
-  geom_edge_fan(aes(alpha = log(weight))) +
-  geom_node_text(aes(label = V(small_network_graph)$label),
+  geom_node_text(aes(label = V(small_network_graph)$url),
                  size = 2,
-                 color = "red")
+                 color = "red") +
+  
+  #Arrow code copied from https://www.data-imaginist.com/2017/ggraph-introduction-edges/ 
+  
+  geom_edge_link(aes(alpha = sqrt(weight)),
+                 arrow = arrow(length = unit(4, 'mm')),
+                 end_cap = circle(3, 'mm'))
+
+#Hover functionality https://stackoverflow.com/questions/38917101/how-do-i-show-the-y-value-on-tooltip-while-hover-in-ggplot2 
+
+#Plot 2: graph without arrows, with source/hub info and subscribers
+ggraph(small_network_graph, layout = "lgl") +
+  geom_edge_fan(aes(alpha = sqrt(weight))) +
+  geom_node_point(aes(size = sqrt(V(small_network_graph)$subscribers),
+                      color = V(small_network_graph)$source_hub)) +
+  scale_color_manual(values = c("lightblue", "mediumpurple2", "lightpink")) +
+  theme_void() +
+  geom_node_text(aes(label = V(small_network_graph)$url),
+                 size = 2,
+                 color = "darkred")
   
 ```
 

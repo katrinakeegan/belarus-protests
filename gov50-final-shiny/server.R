@@ -10,6 +10,9 @@
 library(shiny)
 library(tidyverse)
 library(scales)
+library(ggraph)
+library(igraph)
+library(plotly)
 
 shinyServer(function(input, output) {
 
@@ -85,5 +88,23 @@ shinyServer(function(input, output) {
              y = "domain of link") +
         theme_bw()
     })  
+    
+    output$network1 <- renderPlot({
+      small_nodes <- readRDS("clean_data/small_nodes.RDS")
+      small_edges <- readRDS("clean_data/small_edges.RDS")
+      small_network_graph <- graph_from_data_frame(d = small_edges, 
+                                                   directed = T, 
+                                                   vertices = small_nodes)
+      ggraph(small_network_graph, layout = "lgl") +
+        geom_edge_fan(aes(alpha = sqrt(weight))) +
+        geom_node_point(aes(size = sqrt(V(small_network_graph)$subscribers),
+                            color = V(small_network_graph)$source_hub)) +
+        scale_color_manual(values = c("lightblue", "lightpink", "mediumpurple1")) +
+        theme_void() +
+        geom_node_text(aes(label = V(small_network_graph)$url),
+                       size = 4,
+                       color = "darkred")
+    })
+    
     
 })

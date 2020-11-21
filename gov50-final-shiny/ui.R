@@ -53,11 +53,13 @@ shinyUI(
                           )
                         )
                         ),
+               tabPanel("Networks",
+                        plotOutput("network1")
+                           
+               ),
                
                tabPanel( "About me",
                          p("I'm a Master's student at Harvard in Russian, Eastern European and Central Asian Studies."),
                          p("The github repo for this project can be found", a("here", href = "https://github.com/katrinakeegan/gov50-final"))
-                         
-                         
                )
     ))
