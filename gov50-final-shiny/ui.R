@@ -2,6 +2,7 @@
 
 library(shiny)
 library(shinythemes)
+library(shinyWidgets)
 library(tidyverse)
 library(scales)
 
@@ -49,7 +50,15 @@ shinyUI(
                         p("Gonzalez-Bailon, Sandra and Ning Wang. “Networked discontent: The anatomy of protest campaigns in social media.”", em("Social Networks"), "44 (January 2016): 95-104."),
                         p("Ligtvoet, Inge and Loes Oudenhuijsen. “A rebel youth? Social media, charismatic leadership, and ‘radicalized’ youth in the 2015 Biafra protests” in", em("Biographies of Radicalization: Hidden Messages of Social Change edited by Mirjam de Bruijn: 134-151."), "Berlin: Walter de Gruyter, 2019."),
                         p("Poell, Thomas, Rasha Abdulla, Bernhard Rieder, Robbert Woltering and Liesbeth Zack. “Protest leadership in the age of social media.”", em("Information, Communication & Society"), "19, no. 7 (2016): 994-1014."),
-                        h1("Methodology")
+                        h1("Methodology"),
+                        p("My starting point was the channel NEXTA Live, which is known to be a leading channel in the protest movement. As of October 15, 2020, it had nearly 2 million subscribers, which is over a fifth the entire population of Belarus! (Of course, some subscribers may be from outside the country, but even so, that’s a huge proportion.)"),
+                        p("Telegram allows users to download chat history in JSON format. I downloaded the entire text chat history (without photos, videos, or other multi-media content) for the period August 9, 2020 to September 30, 2020. This is approximately the first month and a half of the protest movement. I then used the website", a("json-csv.com", href = "https://json-csv.com"), "to convert from JSON to CSV. I invested in a premium subscription to convert large files. This website was better than free JSON to CSV converters because it did not produce highly nested data."),
+                        p("I analyzed NEXTA Live’s connections. I considered a link and a share as an equivalent connection, but these two were in different formats in the raw data, so I manually converted each link to its channel name equivalent, which was used for shares."),
+                        p("I then used a methodology similar to snowball sampling. I scraped the data of all the channels to which NEXTA Live linked at least 10 times. I then repeated the process above for all of those channels. I stopped when I found no new channels that were linked to by at least 3 other channels at least 10 times."),
+                        p("The result was 25 channels. I chose to eliminate two of them, one because it did not share anything from other channels, and the other because it was not exclusively focused on Belarus. I also chose to add three randomly selected neighborhood groups. I discovered a large number of neighborhood group chats, and while none of them were very significant individually, they might be important to telling the story of protest leadership as a whole."),
+                        p("The messages from these 26 channels are the data for my analysis. Further detail on how exactly I processed the data can be found in my", a("github repo.", href = "https://github.com/katrinakeegan/belarus-protests")),
+                        p("A major caveat of this methodology was that it is a bit circular: I used a network sampling method to create a network. This means that the method biased NEXTA Live to be near the center of the network, and it is possible that loosely or unrelated networks also exist. This limitation was inherent to the structure of Telegram. Unlike Twitter, from which all messages pertaining to certain search criteria can be downloaded, in Telegram it is impossible to search by topic, only for channels. For a more thorough discussion of this issue, email katrinakeegan@g.harvard.edu for the full paper. My conclusions throughout the website are made with this limitation in mind."),
+                        p("Some channels were primarily Russian-language, others were primarily Belarussian. Nearly all channels contained a mixture of Russian and Belarussian because they would sometimes share posts from outlets using the other language. I read Russian fluently, and understood nearly all of the Belarussian thanks to its similarity to Russian and another language I know, Ukrainian.")
                         ),
                
                tabPanel("Leading Channels",
@@ -58,6 +67,7 @@ shinyUI(
                           #In sidebarLayout need both sidebarPanel and mainPanel within the parentheses
                           
                           sidebarPanel(
+                            setSliderColor("#93032E", 1),
                             sliderInput("x_axis_range_subscribers", #Name of the thing in server which will be used as a variable
                                         "Zoom in on a particular part of the graph", #What is displayed to user
                                         min = 0,
