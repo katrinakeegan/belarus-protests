@@ -16,6 +16,8 @@ library(tm)
 library(urltools)
 library(corpus)
 library(splus2R)
+library(SnowballC)
+library(keyATM)
 ```
 
 
@@ -443,7 +445,7 @@ most_connected %>%
 ```
 
 
-```{r network graph}
+```{r small network graph}
 #this section is for making the network graph
 
 #I followed instructions here: https://www.jessesadler.com/post/network-analysis-with-r/
@@ -458,8 +460,6 @@ small_network <- big_network %>%
 
 #This just creates a list of the nodes and gives them an id number
 
-#It would be good if the nodes here could also have the @name to be more English-friendly. 
-
 small_nodes <- small_network %>%
   distinct(network) %>%
   rename(label = network) %>%
@@ -467,7 +467,7 @@ small_nodes <- small_network %>%
 
 #Now adding other info form corpus_network_info
   
-  full_join(corpus_network_info, by = c("label" = "channel"))
+  full_join(corpus_network_info, by = c("label" = "channel")) 
 
 #This creates a list of edges using the id numbers
 #The first step is to do a left join that adds the id numbers of the network to the matching id , and then rename that as "to"
@@ -525,15 +525,89 @@ ggraph(small_network_graph, layout = "lgl") +
 #Plot 2: graph without arrows, with source/hub info and subscribers
 ggraph(small_network_graph, layout = "lgl") +
   geom_edge_fan(aes(alpha = sqrt(weight))) +
-  geom_node_point(aes(size = sqrt(V(small_network_graph)$subscribers),
-                      color = V(small_network_graph)$source_hub)) +
+  geom_node_point(aes(color = V(small_network_graph)$source_hub),
+                  size = sqrt(V(small_network_graph)$subscribers/10000)) +
   scale_color_manual(values = c("lightblue", "mediumpurple2", "lightpink")) +
   theme_void() +
   geom_node_text(aes(label = V(small_network_graph)$url),
                  size = 2,
                  color = "darkred")
-  
+
+
+# adding network statistics that could be useful in plotting
+
+V(small_network_graph)$indegree <- degree(small_network_graph, mode = "in")
+
+V(small_network_graph)$outdegree <- degree(small_network_graph, mode = "out")
+
+#I betweenness is a directed or undirected measure but no "in" or "out" distinction, alos I added the weights from the edges. 
+
+#Needed to add as_numeric so it would be treated as continuous. 
+
+V(small_network_graph)$betweenness <- as.numeric( betweenness(small_network_graph, directed = TRUE, weights = E(small_network_graph)$weight))
+
+#Graph 3: betweenness and indegree
+
+#Just ask Tyler
+ggraph(small_network_graph, layout = "lgl") +
+  geom_edge_fan(aes(alpha = sqrt(weight))) +
+  geom_node_point(aes(size = V(small_network_graph)$indegree,
+                      color = V(small_network_graph)$betweenness)) +
+  scale_color_gradient(low = "blue", high = "red") +
+  theme_void() +
+  geom_node_text(aes(label = V(small_network_graph)$url),
+                 size = 2,
+                 color = "darkred")
+
 ```
+
+```{r big network graph}
+
+#This section is about creating the big network graph
+
+big_nodes <- big_network %>%
+  distinct(network) %>%
+  rename(label = network) %>%
+  rowid_to_column("id") %>%
+  
+  #Adding a logical for in corpus or not
+  
+  mutate(in_corpus = ifelse(label %in% small_nodes$label, TRUE, FALSE)) %>%
+  left_join(corpus_network_info, by = c("label" = "channel")) 
+
+saveRDS(big_nodes, "gov50-final-shiny/clean_data/big_nodes.RDS")
+
+big_edges <- big_network %>%
+  left_join(big_nodes, by = c("source" = "label")) %>%
+  rename(to = id) %>%
+  left_join(big_nodes, by = c("network" = "label")) %>%
+  rename(from = id) %>%
+  rename(weight = count) %>%
+  select(to, from, weight)
+
+saveRDS(big_edges, "gov50-final-shiny/clean_data/big_edges.RDS")
+
+big_network_graph <- graph_from_data_frame(d = big_edges, directed = F, vertices = big_nodes)
+
+V(big_network_graph)$indegree <- degree(big_network_graph)
+
+V(big_network_graph)$betweenness <- betweenness(big_network_graph, directed = FALSE, weights = E(big_network_graph)$weight)
+
+ggraph(big_network_graph, layout = "lgl") +
+  geom_edge_fan(aes(alpha = sqrt(weight))) +
+  theme_void() +
+  geom_node_text(aes(label = ifelse(
+    V(big_network_graph)$in_corpus == TRUE,
+    V(big_network_graph)$label,
+    "")),
+    color = "darkred",
+    size = 2)
+
+
+
+```
+
+
 
 ```{r, warning = FALSE}
 #This section is about cleaning and graphing connections to non-telegram sources 
@@ -647,7 +721,7 @@ big_outside_network %>%
 ```
 
 
-```{r}
+```{r text cleaning functions}
 #This section is about cleaning the text data
 
 clean_text <- function(data, name){
@@ -699,11 +773,25 @@ clean_text <- function(data, name){
   
   #Needed to remove stopwords before stemming because otherwise didn't catch them all
   
-  filter(!word_raw %in% stopwords(kind = "ru")) %>%
+  filter(!word_raw %in% stopwords("ru")) %>%
   
   #This stemmer is very crude but it is the best R has. Python has much better options
   
-  mutate(word_stemmed = stem_snowball(word_raw, "ru"))
+  mutate(word_stemmed = stem_snowball(word_raw, "ru")) %>%
+  mutate(word_stemmed = ifelse(
+    word_stemmed == "",
+    NA,
+    word_stemmed
+  )) %>%
+  filter(!is.na(word_stemmed))
+  
+}
+
+create_tokenized <- function(data, name) {
+  clean_text(data, name) %>%
+    group_by(id, date) %>%
+    summarize(tokenized_words = list(word_stemmed), .groups = "drop") %>%
+    mutate(source = name) 
 }
 
 count_words <- function(data){
@@ -714,11 +802,6 @@ count_words <- function(data){
 }
 
 #Original code used to make functions 
-
-nexta_words <- nexta_text_clean %>%
-  group_by(word_stemmed) %>%
-  summarize(count = n(), .groups = "drop") %>%
-  arrange(desc(count))
 
 raw_nexta <- read_csv("raw_data_csv/nexta_live.csv", col_types = cols(
   .default = col_character(),
@@ -770,17 +853,164 @@ nexta_text_clean <- raw_nexta %>%
   
   #Needed to remove stopwords before stemming because otherwise didn't catch them all
   
-  filter(!word_raw %in% stopwords(kind = "ru")) %>%
+  filter(!word_raw %in% stopwords("ru")) %>%
   
   #This stemmer is very crude but it is the best R has. Python has much better options
   
-  mutate(word_stemmed = stem_snowball(word_raw, "ru"))
+  mutate(word_stemmed = stem_snowball(word_raw, "ru")) %>%
+  
+  #Here I am trying to remove words "" which might have been messing up the topic model
+  
+  mutate(word_stemmed = ifelse(
+    word_stemmed == "",
+    NA,
+    word_stemmed
+  )) %>%
+  
+  #Here I tried to remove emojis it did not work
+  
+ mutate(word_stemmed2 = str_replace(word_stemmed,
+                                     pattern = !('[/^a-z\u0400-\u04FF]'), 
+                                     replacement = "")) %>%
+  filter(!is.na(word_stemmed))
+  
+view(nexta_text_clean)
+#the following creates a tibble of texts (each text is a message) with a list of stemmed words in that text (this is the format needed for topic modelling)
+
+nexta_texts <- nexta_text_clean %>%
+  group_by(id, date) %>%
+  summarize(tokenized_words = list(word_stemmed), .groups = "drop") %>%
+  mutate(source = "NEXTA") 
+
+
+#the following creates a list of the words in the text with the frequency (probably not going to be useful)
 
 nexta_words <- nexta_text_clean %>%
   group_by(word_stemmed) %>%
   summarize(count = n(), .groups = "drop") %>%
-  arrange(desc(count))
+  arrange(desc(count)) %>%
+  mutate(source = "NEXTA")
 
+#stm package (based on tm package)
 
+```
+
+```{r here I clean the actual functions}
+nexta_live_tokenized <- create_tokenized("raw_data_csv/nexta_live.csv", "NEXTA Live")
+  tutby_tokenized <- create_tokenized("raw_data_csv/tutby_official_raw.csv", "TUT.BY новости")
+  nexta_tv_tokenized <- create_tokenized("raw_data_csv/raw_nexta_tv.csv", "NEXTA")
+  belamova_tokenized <- create_tokenized("raw_data_csv/belamova.csv", "Беларусь головного мозга")
+  mkbelarus_tokenized <- create_tokenized("raw_data_csv/mkbelarus.csv", "МАЯ КРАІНА БЕЛАРУСЬ")
+  nashaniva_tokenized <- create_tokenized("raw_data_csv/nashaniva.csv", "Наша Нiва")
+  onliner_tokenized <- create_tokenized("raw_data_csv/onliner.csv", "Onliner")
+  euroradio_tokenized <- create_tokenized("raw_data_csv/euroradio.csv", "Euroradio")
+  motolkohelp_tokenized <- create_tokenized("raw_data_csv/motolkohelp.csv", "#МотолькоПомоги этому городишко от 3% избавиться")
+  kyky_tokenized <- create_tokenized("raw_data_csv/kyky.csv", "Кулуары KYKY")
+  belsat_tokenized <- create_tokenized("raw_data_csv/belsat.csv", "Белсат")
+  radiosvaboda_tokenized <- create_tokenized("raw_data_csv/radiosvaboda.csv", "Радыё Свабода — Беларусь")
+  usylukashenko_tokenized <- create_tokenized("raw_data_csv/usylukashenko.csv", "Усы Лукашенко")
+  tsikhanouskaya_tokenized <- create_tokenized("raw_data_csv/tsikhanouskaya.csv", "Светлана Тихановская")
+  blackbookbelarus_tokenized <- create_tokenized("raw_data_csv/blackbookbelarus.csv", "Черная книга Беларуси")
+  belteanews_tokenized <- create_tokenized("raw_data_csv/belteanews.csv", "Чай з малинавым варэннем")
+  tribuna_by_tokenized <- create_tokenized("raw_data_csv/tribuna_by.csv", "Tribuna.com Беларусь")
+  studenty_by_tokenized <- create_tokenized("raw_data_csv/studenty_by.csv", "отчислено")
+  pressmvd_tokenized <- create_tokenized("raw_data_csv/pressmvd.csv", "Пресс-секретарь МВД Беларуси")
+  mc_maxim_tokenized <- create_tokenized("raw_data_csv/mc_maxim.csv", "Работаем с Пушкиным!")
+  viasna96_tokenized <- create_tokenized("raw_data_csv/viasna96.csv", "Вясна / Правы чалавека ў Беларусі")
+  bajby_tokenized <- create_tokenized("raw_data_csv/bajby.csv", "БАЖ / BAJ")
+  minsk_eastern_district_107_chat_tokenized <- create_tokenized("raw_data_csv/minsk_eastern_district_107_chat.csv", "Neighborhood Example 1")
+  recall_deputy_lenchevskaya_tokenized <- create_tokenized("raw_data_csv/recall_deputy_lenchevskaya.csv", "Neighborhood Example 2")
+  stop_gaiduk_tokenized <- create_tokenized("raw_data_csv/stop_gaiduk.csv", "Neighborhood Example 3")
+  vybory_smotri_tokenized <- create_tokenized("raw_data_csv/vybory_smotri.csv", "Выборы видишь? | TUT.BY Политика")
+  
+  #Now I combine all of those into the whole corpus of texts
+  tokenized_texts <- bind_rows(nexta_live_tokenized, 
+                           tutby_tokenized,
+                           nexta_tv_tokenized,
+                           belamova_tokenized,
+                           mkbelarus_tokenized,
+                           nashaniva_tokenized,
+                           onliner_tokenized,
+                           euroradio_tokenized,
+                           motolkohelp_tokenized,
+                           kyky_tokenized,
+                           belsat_tokenized,
+                           radiosvaboda_tokenized,
+                           usylukashenko_tokenized,
+                           tsikhanouskaya_tokenized,
+                           blackbookbelarus_tokenized,
+                           belteanews_tokenized,
+                           tribuna_by_tokenized,
+                           studenty_by_tokenized,
+                           pressmvd_tokenized,
+                           mc_maxim_tokenized,
+                           viasna96_tokenized,
+                           bajby_tokenized,
+                           minsk_eastern_district_107_chat_tokenized,
+                           recall_deputy_lenchevskaya_tokenized,
+                           stop_gaiduk_tokenized,
+                           vybory_smotri_tokenized) %>%
+    
+    #Have to do below because keyATM needs a column with the words separated by spaces. str_c collapses the list.
+    
+    mutate(text = map_chr(tokenized_words, ~str_c(., collapse = " "))) %>%
+    filter(text != "") %>%
+    mutate(text = str_replace(text, pattern = "  ", replacement = " ")) %>%
+    mutate(text = str_replace(text, pattern = "   ", replacement = " "))
+  
+saveRDS(tokenized_texts, "gov50-final-shiny/clean_data/tokenized_texts.RDS")
+
+```
+
+```{r topic modelling}
+keywords = list(logistical = c("выход", "улиц", "площад", "район", "центр", "возл", "окол", "собира"),
+                ideological = c("выбор", "лукашенк", "власт", "белорус", "свобод", "президент"))
+
+keyATM_docs <- keyATM_read(tokenized_texts)
+
+keyATM(docs = tokenized_texts,
+       no_keyword_topics = 2,
+       keywords = keywords,
+       model = "covariates",
+       model_settings = list(covariates_data = tokenized_texts %>%
+                               select(source),
+                             covariates_formula = ~ source))
+```
+
+```{r}
+#some useful numbers about density of network
+
+small_edges %>%
+  group_by(from) %>%
+  summarize(unique_connections = n(), .groups = "drop") %>%
+  summarize(avg = mean(unique_connections))
+
+small_edges %>%
+  group_by(from) %>%
+  summarize(avg_links_per_channel = mean(weight), .groups = "drop") %>%
+  summarize(avg = mean(avg_links_per_channel))
+
+outside_corpus_connections <- big_network %>%
+  mutate(in_corpus = ifelse(network %in% small_nodes$label, TRUE, FALSE)) %>%
+  filter(in_corpus == FALSE) %>%
+  group_by(source) %>%
+  summarize(unique_connections = n(), .groups = "drop")
+view(outside_corpus_connections)
+
+big_network %>%
+  mutate(in_corpus = ifelse(network %in% small_nodes$label, TRUE, FALSE)) %>%
+  filter(in_corpus == FALSE) %>%
+  filter(source %in% c("Neighborhood Example 1", "Neighborhood Example 2", "Neighborhood Example 3")) %>%
+  group_by(source) %>%
+  summarize(unique_connections = n(), .groups = "drop") %>%
+  summarize(avg = mean(unique_connections))
+
+big_network %>%
+  mutate(in_corpus = ifelse(network %in% small_nodes$label, TRUE, FALSE)) %>%
+  filter(in_corpus == FALSE) %>%
+  filter(!(source %in% c("Neighborhood Example 1", "Neighborhood Example 2", "Neighborhood Example 3"))) %>%
+  group_by(source) %>%
+  summarize(unique_connections = n(), .groups = "drop") %>%
+  summarize(avg = mean(unique_connections))
 ```
 

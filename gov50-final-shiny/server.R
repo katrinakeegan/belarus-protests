@@ -30,6 +30,7 @@ shinyServer(function(input, output) {
         theme_bw() +
         theme(legend.position = "top", legend.text = element_text(size = 7)) +
         scale_fill_discrete(labels = c("Hub (more links to other channels)", "Source (more links from other channels)", "Unclear")) +
+        scale_fill_manual(values = c("#93032E", "#034C3C", "#C69F89")) +
         scale_x_continuous(labels = comma) +
         xlim(input$x_axis_range_subscribers)
     })
@@ -57,6 +58,8 @@ shinyServer(function(input, output) {
                     input$which_type_linksBySubscribers == "from_to_total" ~ from_to_total,
                     TRUE ~ from_to_unique
                      ))) +
+        #Got the code below from https://www.datanovia.com/en/blog/ggplot-log-scale-transformation/
+        scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x)) +
         geom_point(alpha = 0.5) +
         geom_smooth(method = lm,
                     formula = y ~ x,
@@ -65,9 +68,10 @@ shinyServer(function(input, output) {
         labs(title = "Relationship between number of subscribers and channel links",
              color = " ",
              y = " ",
-             x = "subscribers") +
+             x = "Subscribers (log scale)") +
         theme(legend.position = "bottom") + 
-        scale_color_discrete(labels = c("Links and shares from channel", "Links and shares to channel"))
+        scale_color_discrete(labels = c("Links and shares from channel", "Links and shares to channel")) +
+        scale_color_manual(values = c("#93032E", "#84894A")) 
       
     }) 
     
@@ -81,7 +85,7 @@ shinyServer(function(input, output) {
         arrange(desc(total)) %>%
         slice(1:30) %>%
         ggplot(aes(x = total, y = fct_reorder(domain, total))) +
-        geom_col() +
+        geom_col(color = "#A6A15E", fill = "#034C3C") +
         labs(title = "Total external links",
              subtitle = "Mostly other social media networks, sites linked to telegram channels, \nand other news sites",
              x = "",
@@ -95,16 +99,67 @@ shinyServer(function(input, output) {
       small_network_graph <- graph_from_data_frame(d = small_edges, 
                                                    directed = T, 
                                                    vertices = small_nodes)
-      ggraph(small_network_graph, layout = "lgl") +
-        geom_edge_fan(aes(alpha = sqrt(weight))) +
-        geom_node_point(aes(size = sqrt(V(small_network_graph)$subscribers),
-                            color = V(small_network_graph)$source_hub)) +
-        scale_color_manual(values = c("lightblue", "lightpink", "mediumpurple1")) +
+      ggraph(small_network_graph, layout = "stress") +
+        geom_edge_fan(aes(alpha = sqrt(weight)),
+                      show.legend = FALSE) +
+        geom_node_point(aes(color = V(small_network_graph)$source_hub),
+                        #put size outside aes() for absolute rather than relative size
+                        size = sqrt(V(small_network_graph)$subscribers/2000)) +
+        scale_color_manual(values = c("#C69F89", "#034C3C", "#84894A")) +
         theme_void() +
         geom_node_text(aes(label = V(small_network_graph)$url),
                        size = 4,
-                       color = "darkred")
+                       color = "#93032E") +
+        theme(legend.position = "top") +
+        labs(color = " ")
     })
     
+    output$network2 <- renderPlot({
+      big_nodes <- readRDS("clean_data/big_nodes.RDS")
+      big_edges <- readRDS("clean_data/big_edges.RDS")
+      big_network_graph <- graph_from_data_frame(d = big_edges, 
+                                                   directed = F, 
+                                                   vertices = big_nodes)
+      ggraph(big_network_graph, layout = "stress") +
+        geom_edge_fan(aes(alpha = sqrt(weight)),
+                      color = "white",
+                      show.legend = FALSE) +
+        theme_void() +
+        theme(plot.background = element_rect(fill = "#A6A15E")) +
+        geom_node_text(aes(label = ifelse(
+          V(big_network_graph)$in_corpus == TRUE,
+          V(big_network_graph)$url,
+          "")),
+          color = "#93032E",
+          size = 3)
+    })
+    
+    output$nexta_first_day <- renderImage({
+      list(src = "nexta_first_day.jpg",
+           width = 300,
+           height = 400,
+           alt = "Large number of protesters on the night of the election. Photo by NEXTA.")
+    }, deleteFile = FALSE)
+    
+    output$tut_by <- renderImage({
+      list(src = "tut_by.jpg",
+           width = 400,
+           height = 300,
+           alt = "Protesters link arms at the front of the group.")
+    }, deleteFile = FALSE)
+    
+    output$nasha_niva <- renderImage({
+      list(src = "nasha_niva.jpg",
+           width = 400,
+           height = 300,
+           alt = "Woman holding alternative Belarussian flag in a group of cars blocking traffic during protests.")
+    }, deleteFile = FALSE)
+    
+    output$me_on_maidan <- renderImage({
+      list(src = "me_on_maidan.jpg",
+           width = 300,
+           height = 400,
+           alt = "A picture of me on Maidan Square in Kyiv")
+    }, deleteFile = FALSE)
     
 })
