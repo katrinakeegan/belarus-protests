@@ -380,7 +380,7 @@ unique_links <- unique_links_from_channel %>%
 telegram_corpus <- read_excel("telegram_corpus.xlsx") %>%
   rename(channel = Name) %>%
   rename(subscribers = `Subscribers_10/15/2020`) %>%
-  select(channel, subscribers, url)
+  select(channel, subscribers, url, Type, Sources, language)
 
 corpus_network_info <- full_join(total_links, unique_links, by = "channel") %>%
   mutate(source_hub = case_when(
@@ -390,7 +390,7 @@ corpus_network_info <- full_join(total_links, unique_links, by = "channel") %>%
   )) %>%
   inner_join(telegram_corpus, by = "channel")
 
-saveRDS(corpus_network_info, "clean_data/corpus_network_info.RDS")
+saveRDS(corpus_network_info, "gov50-final-shiny/clean_data/corpus_network_info.RDS")
   
 ```
 

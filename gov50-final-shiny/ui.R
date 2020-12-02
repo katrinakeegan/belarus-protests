@@ -5,6 +5,10 @@ library(shinythemes)
 library(shinyWidgets)
 library(tidyverse)
 library(scales)
+library(gt)
+library(gtsummary)
+library(broom.mixed)
+library(rstanarm)
 
 shinyUI(
     navbarPage(theme = shinytheme("journal"), 
@@ -64,7 +68,7 @@ shinyUI(
                tabPanel("Leading Channels",
                         h2("An introduction to the leading channels"),
                         p("This graph shows all the channels I scraped and their subscribers as of 10/15/2020."),
-                        p("The colors show whether I classified the group as activist (includes calls to protest), opinion (expresses clear opinion about protests but does not typically provide instructions for how to protest, or reporting (simply providing information about protests)"),
+                        p("The colors show whether I classified the group as activist (includes calls to protest), opinion (expresses clear opinion about protests but does not explicitly call people to the streets), or reporting (simply providing information about protests)"),
                         sidebarLayout(
                           
                           #In sidebarLayout need both sidebarPanel and mainPanel within the parentheses

@@ -13,15 +13,18 @@ library(scales)
 library(ggraph)
 library(igraph)
 library(plotly)
+library(gt)
+library(rstanarm)
 
 shinyServer(function(input, output) {
 
     output$subscribers <- renderPlot({
       corpus_network_info <- readRDS("clean_data/corpus_network_info.RDS")
       corpus_network_info %>%
+        mutate(Type = fct_relevel(Type, c("Activist", "Opinion", "Reporting", "Other"))) %>%
         ggplot(aes(x = subscribers, 
                    y = fct_reorder(url, subscribers),
-                   fill = source_hub)) +
+                   fill = Type)) +
         geom_col() +
         labs(title = "Subscribers by channel",
              x = "Number of subscribers",
@@ -29,8 +32,8 @@ shinyServer(function(input, output) {
              fill = " ") +
         theme_bw() +
         theme(legend.position = "top", legend.text = element_text(size = 7)) +
-        scale_fill_discrete(labels = c("Hub (more links to other channels)", "Source (more links from other channels)", "Unclear")) +
-        scale_fill_manual(values = c("#93032E", "#034C3C", "#C69F89")) +
+        scale_fill_discrete(labels = c("Activist", "Opinion", "Reporting", "Other")) +
+        scale_fill_manual(values = c("#93032E", "#C69F89", "#034C3C", "gray")) +
         scale_x_continuous(labels = comma) +
         xlim(input$x_axis_range_subscribers)
     })
