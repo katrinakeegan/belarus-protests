@@ -50,7 +50,8 @@ shinyServer(function(input, output) {
         pivot_longer(cols = c(unique_links_from_channel, unique_links_to_channel), 
                      names_to = "from_to_unique",
                      values_to = "unique_values") %>%
-        ggplot(aes(x = subscribers, 
+        ggplot(aes(x = subscribers,
+                   label = url,
                    y = case_when(
                      input$which_type_linksBySubscribers == "from_to_total" ~ total_values,
                      TRUE ~ unique_values),
@@ -58,8 +59,6 @@ shinyServer(function(input, output) {
                     input$which_type_linksBySubscribers == "from_to_total" ~ from_to_total,
                     TRUE ~ from_to_unique
                      ))) +
-        #Got the code below from https://www.datanovia.com/en/blog/ggplot-log-scale-transformation/
-        scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x)) +
         geom_point(alpha = 0.5) +
         geom_smooth(method = lm,
                     formula = y ~ x,
@@ -71,9 +70,21 @@ shinyServer(function(input, output) {
              x = "Subscribers (log scale)") +
         theme(legend.position = "bottom") + 
         scale_color_discrete(labels = c("Links and shares from channel", "Links and shares to channel")) +
-        scale_color_manual(values = c("#93032E", "#84894A")) 
-      
+        scale_color_manual(values = c("#93032E", "#84894A"))
     }) 
+    
+    
+    output$subscriberRegressionTable <- render_gt({
+      corpus_network_info <- readRDS("clean_data/corpus_network_info.RDS")
+      model1 <- stan_glm(data = corpus_network_info,
+                         formula = subscribers ~ total_links_from_channel + total_links_to_channel + unique_links_from_channel + unique_links_to_channel,
+                         refresh = 0
+      )
+      
+      tbl_regression(model1, intercept = TRUE) %>%
+        as_gt() %>%
+        tab_header(title = "Regression of links on subscribers") 
+    })
     
     output$externalLinks <- renderPlot({
       big_outside_network <- readRDS("clean_data/big_outside_network.RDS")
@@ -86,10 +97,8 @@ shinyServer(function(input, output) {
         slice(1:30) %>%
         ggplot(aes(x = total, y = fct_reorder(domain, total))) +
         geom_col(color = "#A6A15E", fill = "#034C3C") +
-        labs(title = "Total external links",
-             subtitle = "Mostly other social media networks, sites linked to telegram channels, \nand other news sites",
-             x = "",
-             y = "domain of link") +
+        labs(x = "Total External Links",
+             y = "Domain of Link") +
         theme_bw()
     })  
     

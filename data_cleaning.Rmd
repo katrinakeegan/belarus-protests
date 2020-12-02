@@ -18,6 +18,10 @@ library(corpus)
 library(splus2R)
 library(SnowballC)
 library(keyATM)
+library(rstanarm)
+library(gt)
+library(gtsummary)
+library(broom.mixed)
 ```
 
 
@@ -389,6 +393,22 @@ corpus_network_info <- full_join(total_links, unique_links, by = "channel") %>%
 saveRDS(corpus_network_info, "clean_data/corpus_network_info.RDS")
   
 ```
+
+```{r model about subscribers}
+model1 <- stan_glm(data = corpus_network_info,
+         formula = subscribers ~ total_links_from_channel + total_links_to_channel + unique_links_from_channel + unique_links_to_channel,
+         refresh = 0
+         )
+
+tbl_regression(model1, intercept = TRUE) %>%
+  as_gt() %>%
+    tab_header(title = "Regression of links on subscribers") 
+  
+  
+
+```
+
+
 
 ```{r plot for later 1}
 #Plots to copy and paste later

@@ -62,6 +62,9 @@ shinyUI(
                         ),
                
                tabPanel("Leading Channels",
+                        h2("An introduction to the leading channels"),
+                        p("This graph shows all the channels I scraped and their subscribers as of 10/15/2020."),
+                        p("The colors show whether I classified the group as activist (includes calls to protest), opinion (expresses clear opinion about protests but does not typically provide instructions for how to protest, or reporting (simply providing information about protests)"),
                         sidebarLayout(
                           
                           #In sidebarLayout need both sidebarPanel and mainPanel within the parentheses
@@ -75,10 +78,9 @@ shinyUI(
                                         value = c(0, 2000000))
                           ),
                           mainPanel(
-                            p("This graph shows all the channels I scraped and their subscribers as of 10/15/2020."),
-                            p("The colors show whether I classified the group as activist (includes calls to protest), opinion (expresses clear opinion about protests but does not typically provide instructions for how to protest, or reporting (simply providing information about protests)"),
                             plotOutput("subscribers")
                         )),
+                        h2("The relationship between network connections and subscribers"),
                         sidebarLayout(
                           sidebarPanel(
                             selectInput("which_type_linksBySubscribers",
@@ -91,14 +93,13 @@ shinyUI(
                             plotOutput("linksBySubscribers")
                           )
                         ),
-                        sidebarLayout(
-                          sidebarPanel(
-                            
-                          ),
-                          mainPanel(
-                            plotOutput("externalLinks")
-                          )
-                        )
+                        gt_output("subscriberRegressionTable"),
+                        p("As this table shows, subscribers and links either to or from the outlet, no matter the method of counting the links, has no correlation with subscribers."),
+                        p("That implies that for channels that are linked relatively frequently about the protests, subscribers do not depend on an outlet being referenced by other outlets more frequently, or an outlet sharing others' content more frequently. In other words, Telegram connections among leading channels implies nothing about their reach to individual subscribers."),
+                        h2("Links to outside of Telegram"),
+                        p("In addition to considering links and shares to other Telegram channels, I thought it would be interesting an important to understand the external sources to which the leading channels link, in case it was actually other social media networks or websites on which organizational activity was occuring."),
+                        plotOutput("externalLinks"),
+                        p("Links to outside websites are much less frequent than links to other telegram channels. The links that exist are mainly other social media websites (eg., Instagram), websites associated with Telegram channels (eg., news.tut.by), or other news sites (eg., tass.ru). However, there are a couple observations of particular interest here. First is the domain of Google Forms, bit.ly, which implies an attempt to collect information from readers. Another is docs.google.com, which may imply some collaborative work in Google Docs.")
                         ),
                
                tabPanel("Networks",
@@ -113,6 +114,7 @@ shinyUI(
                         plotOutput("network2"),
                         p("This graph shows that the leading channels do have a lot of links and shares beyond the inner network. There appears to be a rather large secondary circle of channels or links to which at least two leading channels link or share. These are indicated where there are sharp points in the graph. It also appears that the three neighborhood groups (stop_gaiduk, recall_deputy_lenchevskaya, minsk_eastern_district_107_chat) are somewhat separate from the rest, with a good deal of unique links and shares. Looking at the chats themselves reveals these are mostly individuals, since the form of a chat provides the opportunity to connect individuals, which channels lack."),
                         p("Some implications of this is that while there are a lot of Telegram channels with which protest-focused channels interacted in some way, the bulk of interactions was still with other leading channels (see the dense white cluster at the center). The neighborhood groups also potentially serve as connectors between individuals and the leading channels.")
+
                ),
                
                tabPanel("Topic Models",
