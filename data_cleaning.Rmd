@@ -22,6 +22,8 @@ library(rstanarm)
 library(gt)
 library(gtsummary)
 library(broom.mixed)
+library(topicmodels)
+library(tidytext)
 ```
 
 
@@ -816,7 +818,7 @@ create_tokenized <- function(data, name) {
 
 count_words <- function(data){
   data %>%
-  group_by(word_stemmed) %>%
+  group_by(source, tokenized_words) %>%
   summarize(count = n(), .groups = "drop") %>%
   arrange(desc(count))
 }
@@ -911,7 +913,6 @@ nexta_words <- nexta_text_clean %>%
   arrange(desc(count)) %>%
   mutate(source = "NEXTA")
 
-#stm package (based on tm package)
 
 ```
 
@@ -944,18 +945,21 @@ nexta_live_tokenized <- create_tokenized("raw_data_csv/nexta_live.csv", "NEXTA L
   vybory_smotri_tokenized <- create_tokenized("raw_data_csv/vybory_smotri.csv", "Выборы видишь? | TUT.BY Политика")
   
   #Now I combine all of those into the whole corpus of texts
+  
+  #But I have to remove the ones that are (primarily) Belarussian :(
+  
   tokenized_texts <- bind_rows(nexta_live_tokenized, 
                            tutby_tokenized,
                            nexta_tv_tokenized,
                            belamova_tokenized,
                            mkbelarus_tokenized,
-                           nashaniva_tokenized,
+                           #nashaniva_tokenized,
                            onliner_tokenized,
-                           euroradio_tokenized,
+                           #euroradio_tokenized,
                            motolkohelp_tokenized,
                            kyky_tokenized,
-                           belsat_tokenized,
-                           radiosvaboda_tokenized,
+                           #belsat_tokenized,
+                           #radiosvaboda_tokenized,
                            usylukashenko_tokenized,
                            tsikhanouskaya_tokenized,
                            blackbookbelarus_tokenized,
@@ -964,25 +968,182 @@ nexta_live_tokenized <- create_tokenized("raw_data_csv/nexta_live.csv", "NEXTA L
                            studenty_by_tokenized,
                            pressmvd_tokenized,
                            mc_maxim_tokenized,
-                           viasna96_tokenized,
-                           bajby_tokenized,
+                           #viasna96_tokenized,
+                           #bajby_tokenized,
                            minsk_eastern_district_107_chat_tokenized,
                            recall_deputy_lenchevskaya_tokenized,
                            stop_gaiduk_tokenized,
                            vybory_smotri_tokenized) %>%
     
     #Have to do below because keyATM needs a column with the words separated by spaces. str_c collapses the list.
-    
-    mutate(text = map_chr(tokenized_words, ~str_c(., collapse = " "))) %>%
-    filter(text != "") %>%
-    mutate(text = str_replace(text, pattern = "  ", replacement = " ")) %>%
-    mutate(text = str_replace(text, pattern = "   ", replacement = " "))
   
-saveRDS(tokenized_texts, "gov50-final-shiny/clean_data/tokenized_texts.RDS")
+  #Commenting out because keyATM didn't work as a topic modelling package. Couldn't get the data format the way it wanted. 
+    
+    #mutate(text = map_chr(tokenized_words, ~str_c(., collapse = " "))) %>%
+    #filter(text != "") %>%
+    #mutate(text = str_replace(text, pattern = "  ", replacement = " ")) %>%
+    #mutate(text = str_replace(text, pattern = "   ", replacement = " "))
+  
+    #Instead, here I format from tidytext format into a document term matrics to use the topicmodels package. I followed instructions here: https://www.tidytextmining.com/nasa.html
+  
+  #First I unnest the tokenized words, this makes it into a tidytext format
+  
+  unnest(tokenized_words) %>%
+    
+    #Next I have to count the words grouped by source. This treats the whole corpus from a channel as one text. 
+    
+    count_words()
 
 ```
 
-```{r topic modelling}
+
+```{r topicmodels}
+#Continuing to follow instructions from here: https://www.tidytextmining.com/nasa.html
+
+#Need to turn my tidytext into a document term matrix.
+
+#After running the topic models there are some words that would be good to manually remove because they are not meaningful.
+
+my_stop_words <- tibble(tokenized_words = c("—",
+                                            "–",
+                                            "эт",
+                                            "котор",
+                                            "наш",
+                                            "сво",
+                                            "так",
+                                            "подписа",
+                                            "предлож",
+                                            "анонимн",
+                                            "новост",
+                                            "ус",
+                                            "ещё",
+                                            "такж"))
+tokenized_texts2 <- anti_join(tokenized_texts, my_stop_words, by = "tokenized_words")
+
+dtm <- tokenized_texts2 %>% 
+  cast_dtm(source, tokenized_words, count)
+
+desc_lda <- LDA(dtm, k = 3, control = list(seed = 1234))
+
+tidy_lda <- tidy(desc_lda)
+
+top_20 <- tidy_lda %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 20)
+
+english_translation <- tibble(english = c(#topic 1
+                                          "deputy",
+                                          "issue/question (vopros)",
+                                          "people",
+                                          "need",
+                                          "simple",
+                                          "chat",
+                                          "district",
+                                          "subscribe",
+                                          "self",
+                                          "meet",
+                                          "power (vlast)",
+                                          "answer",
+                                          "law",
+                                          "us",
+                                          "other",
+                                          "election/choice",
+                                          "Lukashenko",
+                                          "Motolkohelp",
+                                          "do",
+                                          "the people (narod)",
+                                          
+                                          #topic 2
+                                          "people",
+                                          "Minsk",
+                                          "Lukashenko",
+                                          "Belarus",
+                                          "protest",
+                                          "the people (narod)",
+                                          "country",
+                                          "tribuna.by",
+                                          "solidarity",
+                                          "mkbelarus",
+                                          "self",
+                                          "go out (vykhodit)",
+                                          "OMON",
+                                          "city",
+                                          "very",
+                                          "power (vlast)",
+                                          "square",
+                                          "street",
+                                          "independence",
+                                          "Belarussian",
+                                          
+                                          #topic 3
+                                          "Minsk",
+                                          "people",
+                                          "arrest",
+                                          "protest",
+                                          "Belarus",
+                                          "Lukashenko",
+                                          "square",
+                                          "security forces (silovik)",
+                                          "action (aktsiya)",
+                                          "independence",
+                                          "line",
+                                          "employee",
+                                          "street (prospekt)",
+                                          "tut.by",
+                                          "side",
+                                          "near",
+                                          "street (ulitsa)",
+                                          "report",
+                                          "arrested",
+                                          "speak"
+                                          ))
+
+top_20 <- bind_cols(top_20, english_translation)
+
+saveRDS(top_20, file = "gov50-final-shiny/clean_data/top_20.RDS")
+
+top_20 %>%
+  #the following code is copy and pasted from https://www.tidytextmining.com/nasa.html#interpreting-the-topic-model
+  #The goal is to have each of the topics show words from high beta to low beta for each topic (rather than overall beta ranking)
+  mutate(english = reorder_within(english, beta, topic)) %>%
+  group_by(topic, english) %>%
+  arrange(desc(beta)) %>%
+  ungroup() %>%
+  ggplot(aes(x = beta, y = english, fill = as.factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  #this refers back to the ordering in reorder_within()
+  scale_y_reordered() +
+  #scales = "free" means that it won't keep the same y scale (the same terms) for every topic
+  facet_wrap(~topic, scales = "free", ncol = 3) +
+  labs(x = "Percent of topic comprised of this word",
+       y = "") +
+  scale_color_manual(values = c("#93032E", "#C69F89", "#034C3C"))
+
+#Now I am following instructions here https://cfss.uchicago.edu/notes/topic-modeling/ to figure out what percentage of each topic is in each document
+
+gamma <- tidy(desc_lda, matrix = "gamma") %>%
+  rename(channel = document) %>%
+  left_join(telegram_corpus, by = "channel")
+
+saveRDS(gamma, "gov50-final-shiny/clean_data/gamma.RDS")
+
+gamma %>%
+  ggplot(aes(y = url, x = gamma, fill = as.factor(topic))) +
+  geom_col() +
+  scale_fill_manual(values = c("#93032E", "#C69F89", "#034C3C"),
+                    labels = c("1 (organizing)", "2 (inspiring)", "3 (reporting)")) +
+  labs(fill = "Theme",
+       x = "Percent of channel messages comprised of each theme",
+       y = "")
+  
+  
+
+```
+
+
+```{r keyATM topic modelling}
+#this was a failure. I could not get my data in a format that it found acceptable, and couldn't follow their exact data processing step recommendations in quanteda because it would not work for my Russian/Belarussian text. 
+
 keywords = list(logistical = c("выход", "улиц", "площад", "район", "центр", "возл", "окол", "собира"),
                 ideological = c("выбор", "лукашенк", "власт", "белорус", "свобод", "президент"))
 

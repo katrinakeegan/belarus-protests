@@ -146,6 +146,41 @@ shinyServer(function(input, output) {
           size = 3)
     })
     
+    output$topicmodel <- renderPlot({
+      top_20 <- readRDS("clean_data/top_20.RDS")
+      top_20 %>%
+        #the following code is copy and pasted from https://www.tidytextmining.com/nasa.html#interpreting-the-topic-model
+        #The goal is to have each of the topics show words from high beta to low beta for each topic (rather than overall beta ranking)
+        mutate(english = reorder_within(english, beta, topic)) %>%
+        group_by(topic, english) %>%
+        arrange(desc(beta)) %>%
+        ungroup() %>%
+        ggplot(aes(x = beta, y = english, fill = as.factor(topic))) +
+        geom_col(show.legend = FALSE) +
+        #this refers back to the ordering in reorder_within()
+        scale_y_reordered() +
+        #scales = "free" means that it won't keep the same y scale (the same terms) for every topic
+        facet_wrap(~topic, scales = "free", ncol = 3) +
+        labs(x = "Percent of topic comprised of this word",
+             y = "") +
+        scale_fill_manual(values = c("#93032E", "#C69F89", "#034C3C")) +
+        theme_bw()
+    })
+    
+    output$topicPercent <- renderPlot({
+      gamma <- readRDS("clean_data/gamma.RDS")
+      gamma %>%
+        ggplot(aes(y = url, x = gamma, fill = as.factor(topic))) +
+        geom_col() +
+        scale_fill_manual(values = c("#93032E", "#C69F89", "#034C3C"),
+                          labels = c("1 (organizing)", "2 (inspiring)", "3 (reporting)")) +
+        labs(fill = "Theme",
+             x = "Percent of channel messages comprised of each theme",
+             y = "") +
+        theme_bw() +
+        theme(legend.position = "top")
+    })
+    
     output$nexta_first_day <- renderImage({
       list(src = "nexta_first_day.jpg",
            width = 300,
@@ -173,5 +208,7 @@ shinyServer(function(input, output) {
            height = 400,
            alt = "A picture of me on Maidan Square in Kyiv")
     }, deleteFile = FALSE)
+    
+    
     
 })
