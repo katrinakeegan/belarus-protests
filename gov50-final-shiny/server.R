@@ -15,6 +15,7 @@ library(igraph)
 library(plotly)
 library(gt)
 library(rstanarm)
+library(tidytext)
 
 shinyServer(function(input, output) {
 

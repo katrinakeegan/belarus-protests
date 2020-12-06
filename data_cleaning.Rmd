@@ -26,17 +26,29 @@ library(topicmodels)
 library(tidytext)
 ```
 
+The following code is divided into 4 sections:
+-Network
+-Outside connections 
+-Topic modelling
+-Not important (test code for graphs copied into the shiny server, random calculations, failed attempts, etc.)
 
-```{r}
-#Do data cleaning in this file 
-#To input data do here saveRDS(tibble, file = tibble.RDS)
-#Then readRDS in the server file
-```
+SECTION 1: NETWORK
 
-```{r network}
-#The following section is dedicated to creating the NETWORK
+```{r create raw network}
+#The following section is dedicated to creating the raw network.
+
+#It includes the following:
+#clean_to_network_cols function, which does very basic cleaning and selects the needed columns
+#change_link_to_name function, which converts link format to share format for the channel data
+#count_connections function, which counts the total connections (combined links and shares) to each other channel for each source channel. 
+#create_connections function, which reads the data and combines the three above functions.
+#Performs create_connections() on all my raw data.
+#Creates the tibble big_network, which binds the rows of all the connections data. big_network shows each source channel, each channel it connects to, and how many times.
+
+
+
   
-  #Below is a function that will clean the data so that I have the relevant network data
+#Below is a function that will clean the data so that I have the relevant network data
 #It takes data scraped from telegram and converted to csv through https://json-csv.com/
 #And outputs just the columns with network info (links and forwarded from), with NAs in both removed
 
@@ -324,15 +336,15 @@ library(tidytext)
                            vybory_smotri_connections) %>%
     relocate(source, .before = network)
 
-saveRDS(big_network, file = "clean_data/big_network.RDS")
+saveRDS(big_network, file = "belarus-protests/clean_data/big_network.RDS")
 
 
 ```
 
 
 ```{r additions to big_network}
-#Here I want to create a tibble with the following info for the corpus:
-#Number of followers 
+#The following section adds to the raw big network created above through outside information and some calculations.
+#The output is a tibble corpus_network_info that includes the following information about the data that I scraped: total links/shares to and from channel, unique (each channel counted just once) links/shares to and from each channel, the difference between those (whether I classify the channel as a source or hub), subscribers, url and a few other data points added from the excel document I created called "telegram_corpus." 
 
 
 #counts the total number of times it was referenced by others 
@@ -379,11 +391,13 @@ unique_links <- unique_links_from_channel %>%
     TRUE ~ "source"
   ))
 
+#Reads the telegram_corpus information from excel
 telegram_corpus <- read_excel("telegram_corpus.xlsx") %>%
   rename(channel = Name) %>%
   rename(subscribers = `Subscribers_10/15/2020`) %>%
   select(channel, subscribers, url, Type, Sources, language)
 
+#Combines above tibbles into one tibble and adds a column about whether the hub and source classifications agree based on each counting method.
 corpus_network_info <- full_join(total_links, unique_links, by = "channel") %>%
   mutate(source_hub = case_when(
   grepl("hub", source_hub_by_unique_links) & grepl("hub", source_hub_by_total_links) ~ "hub",
@@ -392,83 +406,13 @@ corpus_network_info <- full_join(total_links, unique_links, by = "channel") %>%
   )) %>%
   inner_join(telegram_corpus, by = "channel")
 
-saveRDS(corpus_network_info, "gov50-final-shiny/clean_data/corpus_network_info.RDS")
+saveRDS(corpus_network_info, "belarus-protests/clean_data/corpus_network_info.RDS")
   
-```
-
-```{r model about subscribers}
-model1 <- stan_glm(data = corpus_network_info,
-         formula = subscribers ~ total_links_from_channel + total_links_to_channel + unique_links_from_channel + unique_links_to_channel,
-         refresh = 0
-         )
-
-tbl_regression(model1, intercept = TRUE) %>%
-  as_gt() %>%
-    tab_header(title = "Regression of links on subscribers") 
-  
-  
-
-```
-
-
-
-```{r plot for later 1}
-#Plots to copy and paste later
-corpus_network_info %>%
-  ggplot(aes(x = subscribers, 
-             y = fct_reorder(url, subscribers),
-             fill = source_hub)) +
-    geom_col() +
-    labs(title = "Subscribers by channel",
-         x = "Number of subscribers",
-         y = "Channel URL",
-         fill = " ") +
-    theme_bw() +
-    theme(legend.position = "top", legend.text = element_text(size = 7)) +
-    scale_fill_discrete(labels = c("Hub (more links to other channels)", "Source (more links from other channels)", "Unclear"))
-```
-
-```{r plot for later 2}
-corpus_network_info %>%
-  pivot_longer(cols = c(total_links_from_channel, total_links_to_channel), names_to = "from_to_total") %>%
-  ggplot(aes(x = subscribers, y = value, color = from_to)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = lm,
-              formula = y ~ x,
-              se = FALSE) +
-  theme_bw() +
-  labs(title = "Relationship between number of subscribers and channel links",
-       color = " ",
-       y = " ",
-       x = "subscribers") +
-  theme(legend.position = "bottom") + 
-  scale_color_discrete(labels = c("Links and shares from channel", "Links and shares to channel"))
-  
-
-```
-
-
-
-```{r messing around}
-
-big_network_greater20 <- big_network %>%
-  filter(count > 9)
-
-most_connected <- big_network %>%
-  group_by(network) %>%
-  summarize(total_links = sum(count), .groups = "drop") %>%
-  arrange(desc(total_links)) %>%
-  slice(1:21) %>%
-  filter(!is.na(network))
-
-most_connected %>%
-  ggplot(aes(x = total_links, y = fct_reorder(network, total_links))) +
-    geom_col()
 ```
 
 
 ```{r small network graph}
-#this section is for making the network graph
+#this section is for making the small network (just channels I scraped data from) graph. The output is edges and nodes, formatted as necessary to create an igraph object, which is done in the server. 
 
 #I followed instructions here: https://www.jessesadler.com/post/network-analysis-with-r/
 #https://www.youtube.com/watch?v=0xsM0MbRPGE
@@ -496,7 +440,7 @@ small_nodes <- small_network %>%
 #Then I do the same except for the sources, renaming the label to "from"
 #Actually for some reason had to be reversed which is making my head hurt to logically think through but the code below does work correctly 
 
-saveRDS(small_nodes, "gov50-final-shiny/clean_data/small_nodes.RDS")
+saveRDS(small_nodes, "belarus-protests/clean_data/small_nodes.RDS")
 
 small_edges <- small_network %>%
   left_join(small_nodes, by = c("source" = "label")) %>%
@@ -506,86 +450,13 @@ small_edges <- small_network %>%
   rename(weight = count) %>%
   select(to, from, weight)
 
-saveRDS(small_edges, "gov50-final-shiny/clean_data/small_edges.RDS")
-
-#D is the edges, and vertices argument is for the nodes.
-
-small_network_graph <- graph_from_data_frame(d = small_edges, directed = T, vertices = small_nodes)
-
-#V(network_graph)$degree <- degree(network_graph)
-
-#no igraph plot.igraph(small_network_graph,
-            #vertex.label.cex = 0.6, #reduces font size
-            #edge.arrow.size = 0.3, #Need edge here not just arrow.size
-            #vertex.size = 10,
-            #edge.width = E(small_network_graph)$weight / 100,
-            #edge.curved = 0.3
-            #) 
-
-# Not using igraph plot.igraph(network_graph, 
-           # vertex.color = "white",
-           # vertex.label = NA,
-           # edge.arrow.size = network_graph$count,
-            #vertex.size = V(network_graph)$degree * 0.5)
-
-
-#Plot 1: simple graph with arrows and labels 
-
-ggraph(small_network_graph, layout = "lgl") +
-  geom_node_text(aes(label = V(small_network_graph)$url),
-                 size = 2,
-                 color = "red") +
-  
-  #Arrow code copied from https://www.data-imaginist.com/2017/ggraph-introduction-edges/ 
-  
-  geom_edge_link(aes(alpha = sqrt(weight)),
-                 arrow = arrow(length = unit(4, 'mm')),
-                 end_cap = circle(3, 'mm'))
-
-#Hover functionality https://stackoverflow.com/questions/38917101/how-do-i-show-the-y-value-on-tooltip-while-hover-in-ggplot2 
-
-#Plot 2: graph without arrows, with source/hub info and subscribers
-ggraph(small_network_graph, layout = "lgl") +
-  geom_edge_fan(aes(alpha = sqrt(weight))) +
-  geom_node_point(aes(color = V(small_network_graph)$source_hub),
-                  size = sqrt(V(small_network_graph)$subscribers/10000)) +
-  scale_color_manual(values = c("lightblue", "mediumpurple2", "lightpink")) +
-  theme_void() +
-  geom_node_text(aes(label = V(small_network_graph)$url),
-                 size = 2,
-                 color = "darkred")
-
-
-# adding network statistics that could be useful in plotting
-
-V(small_network_graph)$indegree <- degree(small_network_graph, mode = "in")
-
-V(small_network_graph)$outdegree <- degree(small_network_graph, mode = "out")
-
-#I betweenness is a directed or undirected measure but no "in" or "out" distinction, alos I added the weights from the edges. 
-
-#Needed to add as_numeric so it would be treated as continuous. 
-
-V(small_network_graph)$betweenness <- as.numeric( betweenness(small_network_graph, directed = TRUE, weights = E(small_network_graph)$weight))
-
-#Graph 3: betweenness and indegree
-
-#Just ask Tyler
-ggraph(small_network_graph, layout = "lgl") +
-  geom_edge_fan(aes(alpha = sqrt(weight))) +
-  geom_node_point(aes(size = V(small_network_graph)$indegree,
-                      color = V(small_network_graph)$betweenness)) +
-  scale_color_gradient(low = "blue", high = "red") +
-  theme_void() +
-  geom_node_text(aes(label = V(small_network_graph)$url),
-                 size = 2,
-                 color = "darkred")
+saveRDS(small_edges, "belarus-protests/clean_data/small_edges.RDS")
 
 ```
 
 ```{r big network graph}
 
-#This section is about creating the big network graph
+#This section is about creating the big network graph. It is virtually the same as above except for all the nodes and edges, not just the ones within the leading channel corpus. 
 
 big_nodes <- big_network %>%
   distinct(network) %>%
@@ -597,7 +468,7 @@ big_nodes <- big_network %>%
   mutate(in_corpus = ifelse(label %in% small_nodes$label, TRUE, FALSE)) %>%
   left_join(corpus_network_info, by = c("label" = "channel")) 
 
-saveRDS(big_nodes, "gov50-final-shiny/clean_data/big_nodes.RDS")
+saveRDS(big_nodes, "belarus-protests/clean_data/big_nodes.RDS")
 
 big_edges <- big_network %>%
   left_join(big_nodes, by = c("source" = "label")) %>%
@@ -607,32 +478,16 @@ big_edges <- big_network %>%
   rename(weight = count) %>%
   select(to, from, weight)
 
-saveRDS(big_edges, "gov50-final-shiny/clean_data/big_edges.RDS")
-
-big_network_graph <- graph_from_data_frame(d = big_edges, directed = F, vertices = big_nodes)
-
-V(big_network_graph)$indegree <- degree(big_network_graph)
-
-V(big_network_graph)$betweenness <- betweenness(big_network_graph, directed = FALSE, weights = E(big_network_graph)$weight)
-
-ggraph(big_network_graph, layout = "lgl") +
-  geom_edge_fan(aes(alpha = sqrt(weight))) +
-  theme_void() +
-  geom_node_text(aes(label = ifelse(
-    V(big_network_graph)$in_corpus == TRUE,
-    V(big_network_graph)$label,
-    "")),
-    color = "darkred",
-    size = 2)
-
-
+saveRDS(big_edges, "belarus-protests/clean_data/big_edges.RDS")
 
 ```
-
-
+SECTION 2: OUTSIDE CONNECTIONS
 
 ```{r, warning = FALSE}
-#This section is about cleaning and graphing connections to non-telegram sources 
+#This section is about cleaning and graphing connections to non-telegram sources. The output is:
+#A function, create_outside_connections, that reads the data, shortens non-Telegram urls to just the domain name, and counts how many times each domain appears for each channel.
+#Performs create_outside_connections on all my data.
+#Combines the above into a single tibble, big_outside_network.
 
 create_outside_connections <- function(data, name) {
   read_csv(data, col_types = cols(
@@ -724,27 +579,17 @@ create_outside_connections <- function(data, name) {
                            stop_gaiduk_outside_connections,
                            vybory_smotri_outside_connections)
   
-saveRDS(big_outside_network, "big_outside_network.RDS")
+saveRDS(big_outside_network, "belarus-protests/clean_data/big_outside_network.RDS")
 
-big_outside_network %>%
-  group_by(domain) %>%
-  summarize(total = n(), 
-            .groups = "drop") %>%
-  filter(domain != "t.me") %>%
-  arrange(desc(total)) %>%
-  slice(1:30) %>%
-  ggplot(aes(x = total, y = fct_reorder(domain, total))) +
-  geom_col() +
-  labs(title = "Total external links",
-       subtitle = "Mostly other social media networks, sites linked to telegram channels, and other news sites",
-       x = "",
-       y = "domain of link")
-  
 ```
 
+SECTION 3: TEXT CLEANING
 
 ```{r text cleaning functions}
-#This section is about cleaning the text data
+#This section is about cleaning the text data into a tidytext format. The output is:
+#A function, clean_text, that reads the raw data and cleans it to a one-word-per-row format with the source, message ID and date/time. The words are stemmed and stopwords/punctuation removed.
+#A function, create_tokenized, which performs clean_text and then groups by message and creates a list column with each stemmed word in the message (this turned out to be useless because I did not end up using data in this format and later unnested it, but it would have been a hassle to redo the intermediary code so I left it.)
+#A function, count_words, which counts the number of times each word occurs in each source. 
 
 clean_text <- function(data, name){
   read_csv(data, col_types = cols(
@@ -767,9 +612,11 @@ clean_text <- function(data, name){
 ))%>%
   select(messages__id, messages__date, messages__text, messages__text__text) %>%
   rename(id = messages__id, date = messages__date, text1 = messages__text, text2 = messages__text__text) %>%
+  #there were two possible locations for message text, this combines them into one column.
   mutate(text_raw = ifelse(is.na(text1), text2, text1)) %>%
   select(id, date, text_raw) %>%
   filter(!is.na(text_raw)) %>%
+  #This nice line of code made sure each word had the date/time and message ID by pulling those down from the most recent one, since only the first word in each message had it previously.
   fill(id, date, .direction = "down") %>%
   
   #Removing line breaks proved to be difficult
@@ -809,6 +656,7 @@ clean_text <- function(data, name){
   
 }
 
+#Creates list column format
 create_tokenized <- function(data, name) {
   clean_text(data, name) %>%
     group_by(id, date) %>%
@@ -816,107 +664,26 @@ create_tokenized <- function(data, name) {
     mutate(source = name) 
 }
 
+#Counts the number of times the word occurs in each source
 count_words <- function(data){
   data %>%
   group_by(source, tokenized_words) %>%
   summarize(count = n(), .groups = "drop") %>%
   arrange(desc(count))
 }
-
-#Original code used to make functions 
-
-raw_nexta <- read_csv("raw_data_csv/nexta_live.csv", col_types = cols(
-  .default = col_character(),
-  id = col_double(),
-  messages__id = col_double(),
-  messages__date = col_datetime(format = ""),
-  messages__from_id = col_double(),
-  messages__edited = col_datetime(format = ""),
-  messages__width = col_double(),
-  messages__height = col_double(),
-  messages__reply_to_message_id = col_double(),
-  messages__duration_seconds = col_double(),
-  messages__actor_id = col_double(),
-  messages__message_id = col_double(),
-  messages__poll__closed = col_logical(),
-  messages__poll__total_voters = col_double(),
-  messages__poll__answers__voters = col_double(),
-  messages__poll__answers__chosen = col_logical()
-))
-
-nexta_text_clean <- raw_nexta %>%
-  select(messages__id, messages__date, messages__text, messages__text__text) %>%
-  rename(id = messages__id, date = messages__date, text1 = messages__text, text2 = messages__text__text) %>%
-  mutate(text_raw = ifelse(is.na(text1), text2, text1)) %>%
-  select(id, date, text_raw) %>%
-  filter(!is.na(text_raw)) %>%
-  fill(id, date, .direction = "down") %>%
   
-  #Removing line breaks proved to be difficult
-  #I tried gsub("\n", "", text_raw) as well as:
-  #[\r\n]
-  #[\n]
-  #the UTF-8 encoding U+000A with and without [] and <>. 
-  #The ultimate answer was [\\n], credit to Wyatt Hurt for resolving this issue!
   
-  mutate(text_no_n = gsub("[\\n]", "", text_raw)) %>%
-  mutate(text_no_punc = removePunctuation(text_no_n)) %>%
-  mutate(text_no_num = removeNumbers(text_no_punc)) %>%
-  mutate(text_no_caps = lowerCase(text_no_num)) %>%
-  
-  #the following code creates a list column for which each word is a separate element
-  #I initially tried to map, that did NOT work because it created a tibble which I could not unnest
-  #Credit to Wyatt Hurt for resolving this issue!
-  
-  mutate(text_list = str_split(text_no_caps, " ")) %>%
-  unnest(col = text_list) %>%
-  rename(word_raw = text_list) %>%
-  select(id, date, word_raw) %>%
-  
-  #Needed to remove stopwords before stemming because otherwise didn't catch them all
-  
-  filter(!word_raw %in% stopwords("ru")) %>%
-  
-  #This stemmer is very crude but it is the best R has. Python has much better options
-  
-  mutate(word_stemmed = stem_snowball(word_raw, "ru")) %>%
-  
-  #Here I am trying to remove words "" which might have been messing up the topic model
-  
-  mutate(word_stemmed = ifelse(
-    word_stemmed == "",
-    NA,
-    word_stemmed
-  )) %>%
-  
-  #Here I tried to remove emojis it did not work
-  
- mutate(word_stemmed2 = str_replace(word_stemmed,
-                                     pattern = !('[/^a-z\u0400-\u04FF]'), 
-                                     replacement = "")) %>%
-  filter(!is.na(word_stemmed))
-  
-view(nexta_text_clean)
-#the following creates a tibble of texts (each text is a message) with a list of stemmed words in that text (this is the format needed for topic modelling)
-
-nexta_texts <- nexta_text_clean %>%
-  group_by(id, date) %>%
-  summarize(tokenized_words = list(word_stemmed), .groups = "drop") %>%
-  mutate(source = "NEXTA") 
-
-
-#the following creates a list of the words in the text with the frequency (probably not going to be useful)
-
-nexta_words <- nexta_text_clean %>%
-  group_by(word_stemmed) %>%
-  summarize(count = n(), .groups = "drop") %>%
-  arrange(desc(count)) %>%
-  mutate(source = "NEXTA")
-
+  #This was a bit of code I tried to use to remove emojis. It did not work. 
+  #mutate(word_stemmed2 = str_replace(word_stemmed,
+                                     #pattern = !('[/^a-z\u0400-\u04FF]'), 
+                                     #replacement = "")) 
 
 ```
 
-```{r here I clean the actual functions}
+```{r text cleaning, warning = FALSE}
+#In this section I perform the text cleaning. The output is a tibble, tokenized_texts, that is the result of binding rows of all the create_tokenized tibbles from the raw data, unnesting the list columns, and using count_words to count the number of times each word occurs in each source. 
+#This was the format that the package topicmodels required. I followed instructions here: https://www.tidytextmining.com/nasa.html
+
 nexta_live_tokenized <- create_tokenized("raw_data_csv/nexta_live.csv", "NEXTA Live")
   tutby_tokenized <- create_tokenized("raw_data_csv/tutby_official_raw.csv", "TUT.BY новости")
   nexta_tv_tokenized <- create_tokenized("raw_data_csv/raw_nexta_tv.csv", "NEXTA")
@@ -974,21 +741,9 @@ nexta_live_tokenized <- create_tokenized("raw_data_csv/nexta_live.csv", "NEXTA L
                            recall_deputy_lenchevskaya_tokenized,
                            stop_gaiduk_tokenized,
                            vybory_smotri_tokenized) %>%
+    #First I unnest the tokenized words, this makes it into a tidytext format
     
-    #Have to do below because keyATM needs a column with the words separated by spaces. str_c collapses the list.
-  
-  #Commenting out because keyATM didn't work as a topic modelling package. Couldn't get the data format the way it wanted. 
-    
-    #mutate(text = map_chr(tokenized_words, ~str_c(., collapse = " "))) %>%
-    #filter(text != "") %>%
-    #mutate(text = str_replace(text, pattern = "  ", replacement = " ")) %>%
-    #mutate(text = str_replace(text, pattern = "   ", replacement = " "))
-  
-    #Instead, here I format from tidytext format into a document term matrics to use the topicmodels package. I followed instructions here: https://www.tidytextmining.com/nasa.html
-  
-  #First I unnest the tokenized words, this makes it into a tidytext format
-  
-  unnest(tokenized_words) %>%
+    unnest(tokenized_words) %>%
     
     #Next I have to count the words grouped by source. This treats the whole corpus from a channel as one text. 
     
@@ -998,9 +753,11 @@ nexta_live_tokenized <- create_tokenized("raw_data_csv/nexta_live.csv", "NEXTA L
 
 
 ```{r topicmodels}
-#Continuing to follow instructions from here: https://www.tidytextmining.com/nasa.html
+#This section is about performing the topic modeling. The output is two tibbles.
+#The first, top_20, includes the top 20 words for each topic.
+#The second, gamma, includes the percentage of each channel that is each topic
 
-#Need to turn my tidytext into a document term matrix.
+#I'm continuing to follow instructions from here: https://www.tidytextmining.com/nasa.html
 
 #After running the topic models there are some words that would be good to manually remove because they are not meaningful.
 
@@ -1018,19 +775,32 @@ my_stop_words <- tibble(tokenized_words = c("—",
                                             "ус",
                                             "ещё",
                                             "такж"))
+
+#anti_join removes columns in which the tokenized_word column matches for my_stop_words and tokenized_texts. 
+
 tokenized_texts2 <- anti_join(tokenized_texts, my_stop_words, by = "tokenized_words")
+
+#To use the topicmodels package I need to turn my tidytext format into a document term matrix using cast_dtm from the tidytext package.
 
 dtm <- tokenized_texts2 %>% 
   cast_dtm(source, tokenized_words, count)
 
+#This is the LDA function from the topicmodels package to actually perform the topic modelling. The control = list(seed) is supposed to make sure that the randomized output is the same each time.
+#k is the number of topics. There is no a priori reason to know how many topics would work well. I tried many options 1-10 and found 3 to be most meaninful / distinct. 
+
 desc_lda <- LDA(dtm, k = 3, control = list(seed = 1234))
 
+#the tidy function from tidytext returns the topic model results to a tibble.
+
 tidy_lda <- tidy(desc_lda)
+
+#The following slices the top 20 words for each topic
 
 top_20 <- tidy_lda %>%
   group_by(topic) %>%
   slice_max(beta, n = 20)
 
+#After I was satisfied with the topic model I translated each word in a tibble with a single column, english. 
 english_translation <- tibble(english = c(#topic 1
                                           "deputy",
                                           "issue/question (vopros)",
@@ -1098,9 +868,301 @@ english_translation <- tibble(english = c(#topic 1
                                           "speak"
                                           ))
 
+#This just smashed my English translation onto the top_20 tibble. This was dangerous, but the list was only 60 words so I manually checked that it was correct (none were out of order or missing)
 top_20 <- bind_cols(top_20, english_translation)
 
-saveRDS(top_20, file = "gov50-final-shiny/clean_data/top_20.RDS")
+saveRDS(top_20, file = "belarus-protests/clean_data/top_20.RDS")
+
+
+#Now I am following instructions here https://cfss.uchicago.edu/notes/topic-modeling/ to figure out what percentage of each topic is in each document
+
+#Using matrix = "gamma" from the tidytext package apparently grabs the info on percent topic for each document from the LDA topic model. 
+
+gamma <- tidy(desc_lda, matrix = "gamma") %>%
+  #Had to rename so that when I join below, the by argument can be the same for both datasets that I am joining. 
+  
+  rename(channel = document) %>%
+  
+  #I had to add the telegram_corpus so that I could match urls to the channel name for English speakers. 
+  #Was important to do a left_join because there were some channels in the telegram_corpus that were not in the topic model (the Belarussian language channels) and I wanted to make sure all the data from the topic model was preserved. 
+  
+  left_join(telegram_corpus, by = "channel")
+
+saveRDS(gamma, "belarus-protests/clean_data/gamma.RDS")
+
+```
+
+
+
+SECTION 4: NOT IMPORTANT
+
+```{r model about subscribers}
+#the following model is included in the server. It is a model seeing if there is a correlation between position in the network (links to and from channel by each counting method) and the number of subscribers. 
+
+model1 <- stan_glm(data = corpus_network_info,
+         formula = subscribers ~ total_links_from_channel + total_links_to_channel + unique_links_from_channel + unique_links_to_channel,
+         refresh = 0
+         )
+
+tbl_regression(model1, intercept = TRUE) %>%
+  as_gt() %>%
+    tab_header(title = "Regression of links on subscribers") 
+  
+  
+
+```
+
+
+```{r subscriber plot}
+#This plot, which shows the channels by subscriber and type, is reproduced (with some changes- I ended up using my qualitative classification for fill rather than the calculated source/hub distinction), in the server.  
+
+corpus_network_info %>%
+  ggplot(aes(x = subscribers, 
+             y = fct_reorder(url, subscribers),
+             fill = source_hub)) +
+    geom_col() +
+    labs(title = "Subscribers by channel",
+         x = "Number of subscribers",
+         y = "Channel URL",
+         fill = " ") +
+    theme_bw() +
+    theme(legend.position = "top", legend.text = element_text(size = 7)) +
+    scale_fill_discrete(labels = c("Hub (more links to other channels)", "Source (more links from other channels)", "Unclear"))
+```
+
+
+```{r relationship between links and subscribers plot}
+#This plot is reproduced in the server with interactivity. 
+
+corpus_network_info %>%
+  pivot_longer(cols = c(total_links_from_channel, total_links_to_channel), names_to = "from_to_total") %>%
+  ggplot(aes(x = subscribers, y = value, color = from_to)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = lm,
+              formula = y ~ x,
+              se = FALSE) +
+  theme_bw() +
+  labs(title = "Relationship between number of subscribers and channel links",
+       color = " ",
+       y = " ",
+       x = "subscribers") +
+  theme(legend.position = "bottom") + 
+  scale_color_discrete(labels = c("Links and shares from channel", "Links and shares to channel"))
+```
+
+
+```{r plot about most connected channels}
+#I did not end up using this plot. 
+
+
+big_network_greater20 <- big_network %>%
+  filter(count > 9)
+
+most_connected <- big_network %>%
+  group_by(network) %>%
+  summarize(total_links = sum(count), .groups = "drop") %>%
+  arrange(desc(total_links)) %>%
+  slice(1:21) %>%
+  filter(!is.na(network))
+
+most_connected %>%
+  ggplot(aes(x = total_links, y = fct_reorder(network, total_links))) +
+    geom_col()
+```
+
+```{r small network unused or replicated}
+#This chunk contains network visualizations either not used or replicated in the server.
+
+
+#This creates the graph object, which I did in the server. D is the edges, and vertices argument is for the nodes.
+
+small_network_graph <- graph_from_data_frame(d = small_edges, directed = T, vertices = small_nodes)
+
+#I ended up not using the following attempts with igraph or calculated graph statistics
+
+#V(network_graph)$degree <- degree(network_graph)
+
+#no igraph plot.igraph(small_network_graph,
+            #vertex.label.cex = 0.6, #reduces font size
+            #edge.arrow.size = 0.3, #Need edge here not just arrow.size
+            #vertex.size = 10,
+            #edge.width = E(small_network_graph)$weight / 100,
+            #edge.curved = 0.3
+            #) 
+
+# Not using igraph plot.igraph(network_graph, 
+           # vertex.color = "white",
+           # vertex.label = NA,
+           # edge.arrow.size = network_graph$count,
+            #vertex.size = V(network_graph)$degree * 0.5)
+
+
+#Plot 1: simple graph with arrows and labels (not in project)
+
+ggraph(small_network_graph, layout = "lgl") +
+  geom_node_text(aes(label = V(small_network_graph)$url),
+                 size = 2,
+                 color = "red") +
+  
+  #Arrow code copied from https://www.data-imaginist.com/2017/ggraph-introduction-edges/ 
+  
+  geom_edge_link(aes(alpha = sqrt(weight)),
+                 arrow = arrow(length = unit(4, 'mm')),
+                 end_cap = circle(3, 'mm'))
+
+#Hover functionality https://stackoverflow.com/questions/38917101/how-do-i-show-the-y-value-on-tooltip-while-hover-in-ggplot2 
+
+#Plot 2: graph without arrows, with source/hub info and subscribers (something similar with improvments in the server)
+ggraph(small_network_graph, layout = "lgl") +
+  geom_edge_fan(aes(alpha = sqrt(weight))) +
+  geom_node_point(aes(color = V(small_network_graph)$source_hub),
+                  size = sqrt(V(small_network_graph)$subscribers/10000)) +
+  scale_color_manual(values = c("lightblue", "mediumpurple2", "lightpink")) +
+  theme_void() +
+  geom_node_text(aes(label = V(small_network_graph)$url),
+                 size = 2,
+                 color = "darkred")
+
+
+# adding network statistics that could be useful in plotting (did not end up using these)
+
+V(small_network_graph)$indegree <- degree(small_network_graph, mode = "in")
+
+V(small_network_graph)$outdegree <- degree(small_network_graph, mode = "out")
+
+#I betweenness is a directed or undirected measure but no "in" or "out" distinction, also I added the weights from the edges. 
+
+#Needed to add as_numeric so it would be treated as continuous. 
+
+V(small_network_graph)$betweenness <- as.numeric( betweenness(small_network_graph, directed = TRUE, weights = E(small_network_graph)$weight))
+
+#Graph 3: betweenness and indegree (did not end up using because betweenness was confusing to me)
+ggraph(small_network_graph, layout = "lgl") +
+  geom_edge_fan(aes(alpha = sqrt(weight))) +
+  geom_node_point(aes(size = V(small_network_graph)$indegree,
+                      color = V(small_network_graph)$betweenness)) +
+  scale_color_gradient(low = "blue", high = "red") +
+  theme_void() +
+  geom_node_text(aes(label = V(small_network_graph)$url),
+                 size = 2,
+                 color = "darkred")
+
+```
+
+```{r big network graph unused or replicated}
+#This section contains big network graph information that was unused or replicated in the server.
+
+#Creating the graph object, which I did in the server
+big_network_graph <- graph_from_data_frame(d = big_edges, directed = F, vertices = big_nodes)
+
+#Did not end up using these graph statistics
+V(big_network_graph)$indegree <- degree(big_network_graph)
+
+V(big_network_graph)$betweenness <- betweenness(big_network_graph, directed = FALSE, weights = E(big_network_graph)$weight)
+
+#Improved version of this is in the server
+ggraph(big_network_graph, layout = "lgl") +
+  geom_edge_fan(aes(alpha = sqrt(weight))) +
+  theme_void() +
+  #Adds label only if it is in the corpus, otherwise blank
+  geom_node_text(aes(label = ifelse(
+    V(big_network_graph)$in_corpus == TRUE,
+    V(big_network_graph)$label,
+    "")),
+    color = "darkred",
+    size = 2)
+```
+
+```{r random calculations}
+#some useful numbers about density of network I wanted to calculate for my paper (did not show up on the website)
+
+#mean unique connections for channels in the corpus
+small_edges %>%
+  group_by(from) %>%
+  summarize(unique_connections = n(), .groups = "drop") %>%
+  summarize(avg = mean(unique_connections))
+
+#mean total connections for channels in the corpus
+small_edges %>%
+  group_by(from) %>%
+  summarize(avg_links_per_channel = mean(weight), .groups = "drop") %>%
+  summarize(avg = mean(avg_links_per_channel))
+
+#Number of connections outside the corpus
+outside_corpus_connections <- big_network %>%
+  mutate(in_corpus = ifelse(network %in% small_nodes$label, TRUE, FALSE)) %>%
+  filter(in_corpus == FALSE) %>%
+  group_by(source) %>%
+  summarize(unique_connections = n(), .groups = "drop")
+view(outside_corpus_connections)
+
+#Average connections outside the corpus for the neighborhood groups
+big_network %>%
+  mutate(in_corpus = ifelse(network %in% small_nodes$label, TRUE, FALSE)) %>%
+  filter(in_corpus == FALSE) %>%
+  filter(source %in% c("Neighborhood Example 1", "Neighborhood Example 2", "Neighborhood Example 3")) %>%
+  group_by(source) %>%
+  summarize(unique_connections = n(), .groups = "drop") %>%
+  summarize(avg = mean(unique_connections))
+
+#Average connections outside the corpus for the non-neighborhood groups
+big_network %>%
+  mutate(in_corpus = ifelse(network %in% small_nodes$label, TRUE, FALSE)) %>%
+  filter(in_corpus == FALSE) %>%
+  filter(!(source %in% c("Neighborhood Example 1", "Neighborhood Example 2", "Neighborhood Example 3"))) %>%
+  group_by(source) %>%
+  summarize(unique_connections = n(), .groups = "drop") %>%
+  summarize(avg = mean(unique_connections))
+```
+
+```{r graph of outside connections}
+
+#The following graph was replicated with improvements in the server.
+big_outside_network %>%
+  group_by(domain) %>%
+  summarize(total = n(), 
+            .groups = "drop") %>%
+  filter(domain != "t.me") %>%
+  arrange(desc(total)) %>%
+  slice(1:30) %>%
+  ggplot(aes(x = total, y = fct_reorder(domain, total))) +
+  geom_col() +
+  labs(title = "Total external links",
+       subtitle = "Mostly other social media networks, sites linked to telegram channels, and other news sites",
+       x = "",
+       y = "domain of link")
+  
+```
+
+```{r attempts to use keyATM}
+#The topic modelling package keyATM did not work for me because it refused to accept my data. I could not resolve the error so I used a different package. The code below was used to transform tokenized_texts into a format that keyATM said it needed (instead of a list column, all the words separated by a single space). I could not get my data in a format that it found acceptable, and couldn't follow their exact data processing step recommendations in quanteda because it would not work for my Russian/Belarussian text. 
+
+
+ #Have to do below because keyATM needs a column with the words separated by spaces. str_c collapses the list.
+    
+    #mutate(text = map_chr(tokenized_words, ~str_c(., collapse = " "))) %>%
+    #filter(text != "") %>%
+    #mutate(text = str_replace(text, pattern = "  ", replacement = " ")) %>%
+    #mutate(text = str_replace(text, pattern = "   ", replacement = " "))
+
+
+keywords = list(logistical = c("выход", "улиц", "площад", "район", "центр", "возл", "окол", "собира"),
+                ideological = c("выбор", "лукашенк", "власт", "белорус", "свобод", "президент"))
+
+keyATM_docs <- keyATM_read(tokenized_texts)
+
+#this never worked
+keyATM(docs = tokenized_texts,
+       no_keyword_topics = 2,
+       keywords = keywords,
+       model = "covariates",
+       model_settings = list(covariates_data = tokenized_texts %>%
+                               select(source),
+                             covariates_formula = ~ source))
+```
+
+```{r topic model graphs}
+#These graphs are in the server.
 
 top_20 %>%
   #the following code is copy and pasted from https://www.tidytextmining.com/nasa.html#interpreting-the-topic-model
@@ -1119,14 +1181,6 @@ top_20 %>%
        y = "") +
   scale_color_manual(values = c("#93032E", "#C69F89", "#034C3C"))
 
-#Now I am following instructions here https://cfss.uchicago.edu/notes/topic-modeling/ to figure out what percentage of each topic is in each document
-
-gamma <- tidy(desc_lda, matrix = "gamma") %>%
-  rename(channel = document) %>%
-  left_join(telegram_corpus, by = "channel")
-
-saveRDS(gamma, "gov50-final-shiny/clean_data/gamma.RDS")
-
 gamma %>%
   ggplot(aes(y = url, x = gamma, fill = as.factor(topic))) +
   geom_col() +
@@ -1135,64 +1189,9 @@ gamma %>%
   labs(fill = "Theme",
        x = "Percent of channel messages comprised of each theme",
        y = "")
-  
-  
-
-```
-
-
-```{r keyATM topic modelling}
-#this was a failure. I could not get my data in a format that it found acceptable, and couldn't follow their exact data processing step recommendations in quanteda because it would not work for my Russian/Belarussian text. 
-
-keywords = list(logistical = c("выход", "улиц", "площад", "район", "центр", "возл", "окол", "собира"),
-                ideological = c("выбор", "лукашенк", "власт", "белорус", "свобод", "президент"))
-
-keyATM_docs <- keyATM_read(tokenized_texts)
-
-keyATM(docs = tokenized_texts,
-       no_keyword_topics = 2,
-       keywords = keywords,
-       model = "covariates",
-       model_settings = list(covariates_data = tokenized_texts %>%
-                               select(source),
-                             covariates_formula = ~ source))
 ```
 
 ```{r}
-#some useful numbers about density of network
 
-small_edges %>%
-  group_by(from) %>%
-  summarize(unique_connections = n(), .groups = "drop") %>%
-  summarize(avg = mean(unique_connections))
-
-small_edges %>%
-  group_by(from) %>%
-  summarize(avg_links_per_channel = mean(weight), .groups = "drop") %>%
-  summarize(avg = mean(avg_links_per_channel))
-
-outside_corpus_connections <- big_network %>%
-  mutate(in_corpus = ifelse(network %in% small_nodes$label, TRUE, FALSE)) %>%
-  filter(in_corpus == FALSE) %>%
-  group_by(source) %>%
-  summarize(unique_connections = n(), .groups = "drop")
-view(outside_corpus_connections)
-
-big_network %>%
-  mutate(in_corpus = ifelse(network %in% small_nodes$label, TRUE, FALSE)) %>%
-  filter(in_corpus == FALSE) %>%
-  filter(source %in% c("Neighborhood Example 1", "Neighborhood Example 2", "Neighborhood Example 3")) %>%
-  group_by(source) %>%
-  summarize(unique_connections = n(), .groups = "drop") %>%
-  summarize(avg = mean(unique_connections))
-
-big_network %>%
-  mutate(in_corpus = ifelse(network %in% small_nodes$label, TRUE, FALSE)) %>%
-  filter(in_corpus == FALSE) %>%
-  filter(!(source %in% c("Neighborhood Example 1", "Neighborhood Example 2", "Neighborhood Example 3"))) %>%
-  group_by(source) %>%
-  summarize(unique_connections = n(), .groups = "drop") %>%
-  summarize(avg = mean(unique_connections))
 ```
-
 

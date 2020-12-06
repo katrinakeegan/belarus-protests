@@ -1,0 +1,12 @@
+name: gov50-final-shiny
+title: gov50-final-shiny
+username:
+account: katrinakeegan
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2927430
+bundleId: 3951459
+url: https://katrinakeegan.shinyapps.io/gov50-final-shiny/
+when: 1607282722.80082
+asMultiple: FALSE
+asStatic: FALSE
